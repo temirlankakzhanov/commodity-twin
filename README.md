@@ -1,6 +1,6 @@
 # Commodity Merchant Digital Twin
 
-[![CI](https://github.com/YOUR-USER/commodity-twin/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR-USER/commodity-twin/actions/workflows/ci.yml)
+[![CI](https://github.com/temirlankakzhanov/commodity-twin/actions/workflows/ci.yml/badge.svg)](https://github.com/temirlankakzhanov/commodity-twin/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -39,7 +39,7 @@ same price history drives the trade economics and the VaR backtests.
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR-USER/commodity-twin.git && cd commodity-twin
+git clone https://github.com/temirlankakzhanov/commodity-twin.git && cd commodity-twin
 make install          # creates .venv, installs dependencies, sets up pre-commit
 make fetch            # optional: downloads real data into .cache/ (needs internet)
 make run              # http://localhost:8501
