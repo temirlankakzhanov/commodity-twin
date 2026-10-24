@@ -1,0 +1,379 @@
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/inter-400.woff") format("woff");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/inter-600.woff") format("woff");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../fonts/jetbrains-mono-400.woff") format("woff");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --bg: #0a0a0b;
+  --surface: #141416;
+  --surface-2: #1c1c1f;
+  --line: #2a2a2e;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --accent: #ff6a1f;
+  --alert: #e5383b;
+  --land: #1e1e22;
+  --land-edge: #3a3a42;
+  --lane-idle: #52525b;
+
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --gutter: clamp(16px, 4vw, 56px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 1.0625rem/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Film grain: one static tile, composited once, never animated. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: -100px;
+  z-index: 60;
+  padding: 10px 14px;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Masthead ------------------------------------------------------------------ */
+
+.masthead {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px var(--gutter);
+  font-size: 0.9375rem;
+}
+
+.wordmark {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.masthead-link {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 12px 0;
+}
+.masthead-link:hover {
+  color: var(--text);
+}
+
+/* Hero ---------------------------------------------------------------------- */
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: end;
+  gap: 32px;
+  padding: 120px var(--gutter) clamp(32px, 6vh, 64px);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero-map {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  z-index: -1;
+}
+
+/* Keeps the headline readable over the map: darkens the lower left, where the copy sits. */
+.hero-map::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 48% 42% at 22% 66%, rgb(10 10 11 / 0.82) 0%, rgb(10 10 11 / 0) 100%),
+    linear-gradient(to top, var(--bg) 0%, rgb(10 10 11 / 0.85) 22%, rgb(10 10 11 / 0) 58%),
+    linear-gradient(to right, rgb(10 10 11 / 0.7) 0%, rgb(10 10 11 / 0) 55%);
+}
+
+#route-map {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.land {
+  fill: var(--land);
+  stroke: var(--land-edge);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.lane-idle,
+.lane-active {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.lane-idle {
+  stroke: var(--lane-idle);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.lane-active {
+  stroke: var(--accent);
+  stroke-width: 2.75;
+}
+/* Glow without filters: a wider, faint copy of the same line underneath. */
+.lane-glow {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 9;
+  stroke-opacity: 0.14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.port {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.tanker-hull {
+  fill: #ededf0;
+}
+.tanker-bridge {
+  fill: var(--bg);
+}
+
+/* Port labels: HTML over the map so they keep a fixed pixel size; placed by hero.js. */
+.port-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 1; /* above the scrim, so labels stay legible */
+  pointer-events: none;
+}
+.port-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 1px 5px;
+  background: rgb(10 10 11 / 0.72);
+  border-radius: 2px;
+  color: var(--muted);
+  font: 400 0.6875rem/1.4 var(--mono);
+  white-space: nowrap;
+}
+.port-label[hidden] {
+  display: none;
+}
+
+.hero-copy {
+  max-width: 46rem;
+}
+
+.hero h1 {
+  margin: 0;
+  max-width: 12.5ch;
+  font-weight: 600;
+  font-size: clamp(2.5rem, 1.2rem + 5.6vw, 6.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.lede {
+  margin: clamp(20px, 3vh, 32px) 0 0;
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: clamp(1.0625rem, 0.98rem + 0.35vw, 1.25rem);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.button-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.button-primary:hover {
+  background: #ff8a4c;
+}
+.button-primary[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+.button-secondary {
+  border-color: var(--line);
+  color: var(--text);
+}
+.button-secondary:hover {
+  border-color: var(--muted);
+}
+
+.app-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* Map key: a terminal-style panel, the only monospace on the hero. */
+.map-key {
+  width: 100%;
+  padding: 16px 18px;
+  background: rgb(20 20 22 / 0.88);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: 400 0.8125rem/1.5 var(--mono);
+  color: var(--muted);
+}
+
+.map-key-title {
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.map-key-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.map-key-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.key-swatch {
+  flex: none;
+  width: 28px;
+  height: 6px;
+}
+
+.map-key-note {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+/* Phones: map on top, framed on the Gulf to Malacca, copy and key below it. */
+@media (max-width: 760px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    padding-top: 0;
+    gap: 24px;
+  }
+  .masthead {
+    position: relative;
+    font-size: 0.875rem;
+  }
+  /* The hero's GitHub button is two scrolls away at most; keep the masthead to one line. */
+  .masthead-link {
+    display: none;
+  }
+  .hero-map {
+    position: relative;
+    inset: auto;
+    z-index: 0;
+    aspect-ratio: 1 / 0.95;
+    margin: 0 calc(var(--gutter) * -1);
+  }
+  .hero-map::after {
+    background:
+      linear-gradient(to top, var(--bg) 0%, rgb(10 10 11 / 0) 35%),
+      linear-gradient(to bottom, var(--bg) 0%, rgb(10 10 11 / 0) 12%);
+  }
+  .hero h1 {
+    font-size: clamp(2.25rem, 1rem + 6.5vw, 3rem);
+    letter-spacing: -0.035em;
+  }
+  .actions .button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .map-key {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

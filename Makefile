@@ -4,7 +4,7 @@ PY ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 VENV_PY ?= python3.12
 export PYTHONPATH := .
 
-.PHONY: help install hooks run test cov lint format check fetch snapshot figures docker clean
+.PHONY: help install hooks run test cov lint format check fetch snapshot figures site-data site-assets docker clean
 
 help:  ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -46,6 +46,17 @@ snapshot:  ## Download and write committed snapshots (data/snapshots)
 
 figures:  ## Regenerate README figures from synthetic data
 	$(PY) scripts/make_readme_figures.py
+
+site-data:  ## Run the tests, then rebuild site/data/site.json from the snapshots
+	@mkdir -p .cache
+	@$(PY) -m pytest > .cache/pytest-site.log || (cat .cache/pytest-site.log; exit 1)
+	@tail -n 1 .cache/pytest-site.log
+	$(PY) scripts/build_site_data.py --pytest-log .cache/pytest-site.log
+
+site-assets:  ## Download the pinned GSAP release into site/vendor (checksum-verified, not committed)
+	@mkdir -p .cache
+	curl -fsSL --retry 2 -o .cache/gsap.tgz "$$($(PY) scripts/vendor_gsap.py --url)"
+	$(PY) scripts/vendor_gsap.py .cache/gsap.tgz
 
 docker:  ## Build and run the container on http://localhost:8501
 	docker build -t commodity-twin .

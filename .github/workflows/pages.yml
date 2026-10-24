@@ -1,0 +1,41 @@
+name: Pages
+
+# Publishes site/ to GitHub Pages. GSAP is not in the repository: it is downloaded here, at
+# deploy time, from the npm registry and rejected unless its checksum matches the pinned value.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "scripts/vendor_gsap.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download GSAP 3.15.0 (checksum-verified)
+        run: make site-assets
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v5

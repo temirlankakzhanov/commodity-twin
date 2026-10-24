@@ -18,6 +18,12 @@ htmlcov/
 .env
 .streamlit/secrets.toml
 
+# Landing page: GSAP is downloaded by `make site-assets` / the Pages workflow, never committed
+site/vendor/
+
+# Local preview config for the Claude desktop app
+.claude/launch.json
+
 # OS / editors
 .DS_Store
 .idea/

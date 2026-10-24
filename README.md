@@ -86,6 +86,11 @@ No API key is needed. For a higher FRED rate limit, copy `.env.example` to `.env
 Committed snapshots in `data/snapshots/` should only be created from sources whose licence
 allows redistribution.
 
+**GSAP (landing page animation)**: not included in this repository. GSAP 3.15.0 is distributed
+under GreenSock's standard "no charge" licence ([gsap.com/standard-license](https://gsap.com/standard-license)),
+not an open-source licence; `make site-assets` and the Pages workflow download the pinned
+release and verify its checksum.
+
 Data in this project is for educational purposes only and is not investment advice.
 
 ## Reliability design

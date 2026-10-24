@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Commodity Merchant Digital Twin</title>
+  <meta name="description" content="A portfolio model of a crude-oil merchant: route optimisation, chokepoint stress tests on IMF PortWatch traffic, and formal VaR/ES backtests.">
+  <meta name="color-scheme" content="dark">
+  <link rel="preload" href="fonts/inter-600.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="fonts/inter-400.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/config.js" defer></script>
+  <!-- GSAP 3.15.0, GreenSock standard licence: downloaded at deploy, not part of the repository. -->
+  <script src="vendor/gsap/gsap.min.js" defer></script>
+  <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
+  <script src="js/motion.js" defer></script>
+  <script src="js/hero.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="masthead">
+    <a class="wordmark" href="#top">Commodity Merchant Digital Twin</a>
+    <a class="masthead-link" data-github-link href="https://github.com/temirlankakzhanov/commodity-twin">Source on GitHub</a>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <figure class="hero-map">
+        <svg id="route-map" role="img" aria-labelledby="map-title map-desc" preserveAspectRatio="xMidYMid slice">
+          <title id="map-title">Illustrative crude-oil sea lanes</title>
+          <desc id="map-desc">World map of the model's demonstration network: three loading ports, three discharge ports and ten sea lanes. Lanes used in the base-case plan are highlighted. Positions are illustrative, not ship tracking.</desc>
+        </svg>
+        <div class="port-labels" aria-hidden="true"></div>
+      </figure>
+
+      <div class="hero-copy">
+        <h1 id="hero-title">Where the oil can sail decides what it is worth.</h1>
+        <p class="lede">A working model of a crude-oil merchant. It sends cargoes down the most profitable open sea lanes, tests what a closed chokepoint costs, and backtests the risk models that size the book.</p>
+        <div class="actions">
+          <a class="button button-primary" data-app-link href="#app-pending">Launch the app</a>
+          <a class="button button-secondary" data-github-link href="https://github.com/temirlankakzhanov/commodity-twin">GitHub</a>
+        </div>
+        <p class="app-note" data-app-note hidden>The app link goes live once the Streamlit app is deployed.</p>
+      </div>
+
+      <aside class="map-key" aria-label="Map key">
+        <p class="map-key-title">Illustrative routes</p>
+        <ul class="map-key-list">
+          <li><svg class="key-swatch" viewBox="0 0 28 6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" class="lane-active"/></svg>Lane used in the base-case plan</li>
+          <li><svg class="key-swatch" viewBox="0 0 28 6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" class="lane-idle"/></svg>Lane available, not used</li>
+        </ul>
+        <p class="map-key-note">Demonstration network with assumed volumes and freight. Not live ship tracking. Plan solved on prices as of <time data-prices-asof>the snapshot date</time>.</p>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>
