@@ -1,0 +1,1 @@
+{"key": "prices-BRENT-WTI-HENRY_HUB", "format": "parquet", "source": "FRED", "rows": 4301, "fetched_at": "2026-10-24T17:17:38.632357+00:00", "index": ["date"], "datetime_cols": ["date"]}

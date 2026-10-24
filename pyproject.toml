@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "commodity-twin"
+version = "0.1.0"
+description = "Commodity Merchant Digital Twin with an independent VaR/ES model validation lab"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+  "streamlit>=1.40,<2",
+  "pandas>=2.2,<4",
+  "numpy>=1.26,<3",
+  "scipy>=1.11,<2",
+  "matplotlib>=3.8,<4",
+  "requests>=2.31,<3",
+]
+
+[project.optional-dependencies]
+storage = [
+  "pyarrow>=15; platform_system != 'Darwin' or platform_machine != 'x86_64'",
+  "duckdb>=1.0,<2; platform_system != 'Darwin' or platform_machine != 'x86_64'",
+]
+yahoo = ["yfinance>=0.2.40"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "pre-commit>=3.7"]
+
+[tool.setuptools.packages.find]
+include = ["mtwin*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", ".cache"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N", "C4", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011", "N802", "E501"]
+"scripts/*" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning:mtwin.*"]

@@ -1,0 +1,12 @@
+# Runtime dependencies for Streamlit Community Cloud / Hugging Face Spaces / Render.
+# Ranges (not exact pins) keep the build installable as wheels appear for new Python versions;
+# CI runs against the latest versions inside these ranges.
+streamlit>=1.40,<2
+pandas>=2.2,<4
+numpy>=1.26,<3
+scipy>=1.11,<2
+matplotlib>=3.8,<4
+requests>=2.31,<3
+# Parquet cache and DuckDB catalogue. Optional at runtime: the app falls back to csv.gz and pandas.
+pyarrow>=15; platform_system != "Darwin" or platform_machine != "x86_64"
+duckdb>=1.0,<2; platform_system != "Darwin" or platform_machine != "x86_64"

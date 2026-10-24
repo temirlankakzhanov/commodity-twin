@@ -1,0 +1,15 @@
+---
+description: Project rules for commodity-twin
+alwaysApply: true
+---
+
+Read CLAUDE.md in the repository root before changing code; it is the source of truth.
+
+- Python 3.11+, type hints on public functions, Google-style docstrings in English.
+- Layering: `ui -> risk / trading / signals -> data`. Only `mtwin/ui/pages.py` imports streamlit.
+- Never invent API fields, endpoints or library functions. If unsure, read the provider docs or
+  the installed package source, and say what is unverified.
+- Every change that alters behaviour needs a test. Tests are offline and deterministic.
+- Run `make check` (ruff + pytest) before declaring work done.
+- Losses and VaR/ES are positive numbers; exception means `loss > VaR`.
+- UI text, docs and code comments are in English. Chat with the owner is in Russian.
