@@ -374,7 +374,8 @@ html[data-story="pinned"] .closure-stage {
   margin: 0;
   max-width: 12.5ch;
   font-weight: 600;
-  font-size: clamp(2.5rem, 1.2rem + 5.6vw, 6.25rem);
+  /* Sized from both width and height, so short windows do not push it under the masthead. */
+  font-size: clamp(2.5rem, calc(1.2rem + min(5.6vw, 8.9vh)), 6.25rem);
   line-height: 0.98;
   letter-spacing: -0.04em;
   text-wrap: balance;
@@ -580,6 +581,28 @@ html[data-story="pinned"] .closure-stage {
 .card-note {
   margin: 8px 0 0;
   font-size: 0.6875rem;
+}
+
+/* Medium widths: the hero copy takes the full width (a narrow column would stack the headline
+   six lines high) and the map key moves to the top right, under the masthead. */
+@media (min-width: 761px) and (max-width: 1099px) {
+  .hero-copy {
+    grid-column: left-start / right-end;
+  }
+  .hero-copy h1 {
+    font-size: clamp(2.25rem, calc(1rem + min(4.6vw, 7vh)), 4.5rem);
+  }
+  .actions,
+  .app-note {
+    width: fit-content;
+    max-width: 34rem;
+  }
+  .map-key {
+    align-self: start;
+    width: min(100%, 280px);
+    margin: 72px 0 0;
+    padding: 12px 14px;
+  }
 }
 
 /* Phones: everything stacks, nothing is pinned. Hero map, hero copy and key, then the
@@ -993,14 +1016,12 @@ html[data-story="pinned"] .console-panel.is-selected {
 }
 /* Optimiser scenarios: a toggle row, the table, and beside it a small route map and a live
    summary. Switching only rewrites text and classes; the fade is opacity/transform only. */
+/* Chip rows wrap onto a second line rather than clipping. */
 .scenario-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 10px 0 4px;
-  padding-bottom: 4px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
 }
 .scenario-chip {
   display: inline-flex;
@@ -1197,7 +1218,7 @@ html[data-story="pinned"] .console-panel.is-selected {
 }
 /* The expanded idle list scrolls inside its own box, so the console never grows. */
 .lane-list-idle {
-  max-height: 176px;
+  max-height: 132px;
   margin-top: 6px;
   overflow-y: auto;
   overscroll-behavior: contain;

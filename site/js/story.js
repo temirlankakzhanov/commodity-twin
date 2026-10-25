@@ -34,7 +34,13 @@
     "Malacca Strait": "Malacca",
     "Panama Canal": "Panama",
   };
-  var PINNED_QUERY = "(min-width: 761px) and (prefers-reduced-motion: no-preference)";
+  // Pin only where the tallest console panel fits the viewport (measured: about 700 px of console
+  // plus margins at 960-1100 px wide, about 670 px at 1200 px and up). Narrower or shorter windows
+  // get the stacked, normal-flow layout where nothing is hidden.
+  var MOTION_OK = "(prefers-reduced-motion: no-preference)";
+  var PINNED_QUERY =
+    MOTION_OK + " and (min-width: 960px) and (min-height: 760px), " +
+    MOTION_OK + " and (min-width: 1200px) and (min-height: 720px)";
   // The pinned timeline is in its own units; each unit takes VH_PER_UNIT % of the viewport
   // height of scroll. Hero and closure take STORY_UNITS (230vh); the console adds CONSOLE_IN for
   // its entrance plus its own sub-steps (SITE_CONSOLE.units).
@@ -1019,9 +1025,9 @@
           splitNodes.forEach(unsplit);
           // A rebuild (resize, fonts) re-pins straight away; only fall back when the query no
           // longer matches (narrow window, reduced motion switched on).
-          window.requestAnimationFrame(function () {
+          window.setTimeout(function () {
             if (!window.matchMedia(PINNED_QUERY).matches) renderStatic();
-          });
+          }, 0);
         };
       }
 
@@ -1056,16 +1062,21 @@
       }
       setup();
 
-      // Line breaks and the fitted camera depend on the width: rebuild on width changes.
+      // Line breaks and the fitted camera depend on the width: rebuild on width changes. A height
+      // change only needs fresh pin lengths (they are in % of the viewport): a debounced refresh.
+      // Crossing PINNED_QUERY in either direction is handled by gsap.matchMedia itself.
       var lastWidth = window.innerWidth;
       var timer = 0;
       window.addEventListener("resize", function () {
         window.clearTimeout(timer);
         timer = window.setTimeout(function () {
-          if (window.innerWidth === lastWidth) return;
-          lastWidth = window.innerWidth;
-          rebuild();
-        }, 200);
+          if (window.innerWidth !== lastWidth) {
+            lastWidth = window.innerWidth;
+            rebuild();
+          } else if (window.ScrollTrigger) {
+            window.ScrollTrigger.refresh();
+          }
+        }, 250);
       });
       // Line breaks change once the web fonts arrive; rebuild only if they were not ready yet.
       if (document.fonts && document.fonts.status !== "loaded") {
