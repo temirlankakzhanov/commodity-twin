@@ -22,13 +22,16 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from mtwin.config import load_settings
 from mtwin.data import DataService
 from mtwin.data.service import CHOKEPOINTS, LoadResult
 from mtwin.risk import MODEL_LABELS, ForecastConfig, run_validation
+from mtwin.risk.backtest import exceptions
 from mtwin.risk.returns import log_returns, pnl_from_exposures
+from mtwin.risk.validation import BASEL_WINDOW, FAIL_LEVEL, REVIEW_LEVEL
 from mtwin.signals.chokepoints import (
     BASELINE_GAP,
     BASELINE_WINDOW,
@@ -44,6 +47,7 @@ from mtwin.trading.optimizer import FlowPlan
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "site" / "data" / "site.json"
+VALIDATION_OUT_NAME = "validation.json"  # written next to site.json
 RAW_WTI = ROOT / "data" / "snapshots" / "site-raw-DCOILWTICO-2020.csv"
 
 HORMUZ = "Strait of Hormuz"
@@ -357,8 +361,16 @@ def scenarios(network: Network, prices: Mapping[str, float]) -> dict[str, Any]:
     }
 
 
-def validation(prices: pd.DataFrame, network: Network, plan: FlowPlan) -> dict[str, Any]:
-    """Verdicts of all VaR/ES models on the Risk tab's default book and settings."""
+def validation(
+    prices: pd.DataFrame, network: Network, plan: FlowPlan
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Verdicts of all VaR/ES models on the Risk tab's default book, and their daily series.
+
+    Returns the summary for ``site.json`` and the per-day series for ``validation.json``: one
+    shared loss array, each model's VaR, and the exception days (``loss > VaR``, the same
+    ``exceptions`` function the backtests use). Amounts are in USD millions; dates are calendar-day
+    offsets from ``start``.
+    """
     latest = {name: float(prices[name].iloc[-1]) for name in network.benchmarks}
     exposures = book_exposures(plan, network, latest, HEDGE_RATIO)
     pnl = pnl_from_exposures(exposures, log_returns(prices))
@@ -366,19 +378,74 @@ def validation(prices: pd.DataFrame, network: Network, plan: FlowPlan) -> dict[s
     keep = ["model", "observations", "exceptions", "expected", "kupiec_p", "cond_coverage_p"]
     keep += ["exc_last_250", "basel_zone", "es_z2", "verdict"]
     table = result.summary[keep]
-    return {
+    first = result.forecasts[next(iter(MODEL_LABELS))]
+    summary = {
         "settings": {
             "book": "plan-implied inventory in transit, unhedged",
             "exposures_usd": {k: round(v) for k, v in exposures.items()},
             "confidence": VALIDATION_CFG.alpha,
             "window_days": VALIDATION_CFG.window,
-            "first_forecast": result.forecasts[next(iter(MODEL_LABELS))]
-            .index[0]
-            .strftime("%Y-%m-%d"),
+            "first_forecast": first.index[0].strftime("%Y-%m-%d"),
         },
         "models": json.loads(table.to_json(orient="records")),
+        "rule": {
+            "fail_level": FAIL_LEVEL,
+            "review_level": REVIEW_LEVEL,
+            "basel_window_days": BASEL_WINDOW,
+        },
         "note": "Verdicts depend on the book, confidence level, window and data date; "
         "other settings give other verdicts.",
+    }
+    start = first.index[0]
+    series = {
+        "start": start.strftime("%Y-%m-%d"),
+        "unit": "USD millions",
+        "offsets": [int((d - start).days) for d in first.index],
+        "loss": [round(float(v) / 1e6, 2) for v in first["loss"]],
+        "order": [MODEL_LABELS[key] for key in MODEL_LABELS],
+        "models": {},
+    }
+    worst = int(np.argmax(series["loss"]))
+    best = int(np.argmin(series["loss"]))
+    series["extremes"] = {
+        "largest_loss": {"offset": series["offsets"][worst], "loss": series["loss"][worst]},
+        "largest_gain": {"offset": series["offsets"][best], "loss": series["loss"][best]},
+    }
+    for key, fc in result.forecasts.items():
+        if not fc.index.equals(first.index):
+            raise ValueError(f"{key} forecasts are not on the shared date axis")
+        hits = exceptions(fc["loss"].to_numpy(), fc["var"].to_numpy())
+        series["models"][MODEL_LABELS[key]] = {
+            "var": [round(float(v) / 1e6, 2) for v in fc["var"]],
+            "exceptions": [int(i) for i in np.flatnonzero(hits)],
+        }
+    return summary, series
+
+
+def negative_print_day(
+    series: dict[str, Any], low: Mapping[str, Any], model_value: float | None
+) -> dict[str, Any]:
+    """Where the raw WTI low falls on the backtest axis and how the model handled it.
+
+    ``in_test`` says whether that day is a test day (it is, with the previous price carried
+    forward); ``next_offset`` and ``next_loss`` give the following test day, which carries the move.
+    """
+    start = pd.Timestamp(series["start"])
+    offset = int((pd.Timestamp(low["date"]) - start).days)
+    offsets = series["offsets"]
+    later = [i for i, o in enumerate(offsets) if o > offset]
+    nxt = later[0] if later else None
+    return {
+        "date": low["date"],
+        "wti": low["value"],
+        "model_wti": model_value,
+        "offset": offset,
+        "in_test": offset in set(offsets),
+        "next_offset": None if nxt is None else offsets[nxt],
+        "next_loss": None if nxt is None else series["loss"][nxt],
+        "note": "WTI settled at a negative price, where a log return is undefined. Price cleaning "
+        "treats it as missing and carries the previous price forward, so this day stays in the "
+        "test with no WTI move and the next trading day carries the whole drop.",
     }
 
 
@@ -471,6 +538,9 @@ def build(
     latest = {name: float(prices.data[name].iloc[-1]) for name in network.benchmarks}
     closure = hormuz_closure(network, latest)
     base_plan = optimize_flows(network, latest)
+    summary, series = validation(prices.data, network, base_plan)
+    wti = wti_2020(raw_wti, prices.data)
+    series["negative_print"] = negative_print_day(series, wti["low"], wti["model_value"])
     return {
         "as_of": {
             "prices": prices.data.index.max().strftime("%Y-%m-%d"),
@@ -493,9 +563,10 @@ def build(
         },
         "hormuz_closure": closure,
         "scenarios": scenarios(network, latest),
-        "validation": validation(prices.data, network, base_plan),
+        "validation": summary,
+        "validation_series": series,  # main() writes this to validation.json
         "crises": {
-            "wti_2020": wti_2020(raw_wti, prices.data),
+            "wti_2020": wti,
             "brent_2022": brent_2022(prices.data),
             "red_sea_2024": red_sea_2024(transits.data),
         },
@@ -531,7 +602,12 @@ def main(argv: list[str] | None = None) -> None:
         service = DataService(settings)
         payload = build(service.prices(), service.chokepoints(), pd.read_csv(RAW_WTI), tests)
     args.out.parent.mkdir(parents=True, exist_ok=True)
+    series = payload.pop("validation_series")
     args.out.write_text(json.dumps(payload, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    # The daily series is machine data loaded in idle time: compact, no indentation.
+    (args.out.parent / VALIDATION_OUT_NAME).write_text(
+        json.dumps(series, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(f"wrote {args.out.relative_to(ROOT)} (tests passed: {tests['passed']})")
 
 

@@ -827,8 +827,11 @@ html[data-story="pinned"] .console-panel.is-selected {
 }
 
 /* "?" disclosure: a small popover that never changes the panel's height. */
+/* The "?" sits at the right end of the panel head; its popover opens under it, aligned to its
+   right edge, so it never runs off the left of the window or covers the controls below. */
 .info {
   position: relative;
+  margin-left: auto;
 }
 .info-button {
   display: grid;
@@ -853,8 +856,13 @@ html[data-story="pinned"] .console-panel.is-selected {
   right: 0;
   top: calc(100% + 8px);
   z-index: 6;
-  width: min(34ch, 78vw);
-  padding: 12px 14px;
+  width: min(540px, calc(100vw - 44px));
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lane-idle) transparent;
+  padding: 14px 16px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -939,19 +947,16 @@ html[data-story="pinned"] .console-panel.is-selected {
   stroke-linejoin: round;
 }
 
-.panel-foot,
-.settings-list {
+.panel-foot {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 3px 14px;
   margin: 12px 0 0;
 }
-.panel-foot dt,
-.settings-list dt {
+.panel-foot dt {
   color: var(--muted);
 }
-.panel-foot dd,
-.settings-list dd {
+.panel-foot dd {
   margin: 0;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -960,34 +965,7 @@ html[data-story="pinned"] .console-panel.is-selected {
   transition: opacity 260ms ease;
 }
 
-/* Verdicts: settings and note beside the grid, so no verdict reads as a general claim. */
-.verdict-layout {
-  display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
-  gap: 24px;
-  margin-top: 12px;
-}
-.panel-settings {
-  transition: opacity 260ms ease;
-}
-.panel-settings .settings-list {
-  margin: 0;
-}
-.verdicts {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.verdict {
-  padding: 10px 12px;
-  background: rgb(10 10 11 / 0.5);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  transition: opacity 260ms ease;
-}
+/* Verdict label: the word and its icon always; colour only repeats them. */
 .verdict-label {
   display: inline-flex;
   align-items: center;
@@ -1013,17 +991,6 @@ html[data-story="pinned"] .console-panel.is-selected {
 .verdict-fail .tag-icon {
   stroke: var(--alert);
 }
-.verdict-model {
-  margin: 8px 0 4px;
-  color: var(--text);
-}
-.verdict-stats {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-variant-numeric: tabular-nums;
-}
-
 /* Optimiser scenarios: a toggle row, the table, and beside it a small route map and a live
    summary. Switching only rewrites text and classes; the fade is opacity/transform only. */
 .scenario-bar {
@@ -1434,6 +1401,9 @@ html[data-story="pinned"] .console-panel.is-selected {
   position: absolute;
   top: 4px;
   left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px 8px;
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -1474,7 +1444,6 @@ html[data-story="pinned"] .console-panel.is-selected {
   display: block;
 }
 .monitor-tip .alert-chip {
-  margin-left: 8px;
   font-size: 0.6875rem;
 }
 .monitor-count {
@@ -1486,6 +1455,133 @@ html[data-story="pinned"] .console-panel.is-selected {
   margin: 12px 0 0;
 }
 
+/* Validation: verdict and sentence beside three numbers, then the tape of forecast days. */
+.val-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(24px, 3vw, 48px);
+  align-items: start;
+  margin-top: 14px;
+}
+.val-verdict {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.val-verdict .verdict-label {
+  padding: 3px 10px 3px 8px;
+}
+.val-tape-wrap {
+  margin-top: 14px;
+  transition: opacity 260ms ease;
+}
+.legend-bar {
+  width: 6px;
+  height: 12px;
+  background: var(--lane-idle);
+}
+.legend-tick {
+  width: 2px;
+  height: 12px;
+  background: var(--alert);
+}
+.val-tape {
+  position: relative;
+  height: 184px;
+  outline-offset: 6px;
+}
+.val-tape[hidden] {
+  display: none;
+}
+.val-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.val-years span {
+  position: absolute;
+  bottom: 0;
+  color: var(--muted);
+  font-size: 0.625rem;
+  transform: translateX(-50%);
+}
+/* The marker label sits in a band above the plot with a thin leader down to the marker, and
+   hides while the hover tooltip is shown. */
+.val-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.val-marker.is-muted {
+  opacity: 0;
+}
+.val-marker-lead {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  background: rgb(244 244 245 / 0.5);
+}
+.val-marker-dot {
+  position: absolute;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border: 1.5px solid var(--text);
+  border-radius: 50%;
+  background: transparent;
+}
+.val-marker-label {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  max-width: 46ch;
+  width: max-content;
+  padding: 1px 6px;
+  background: rgb(10 10 11 / 0.85);
+  border-left: 1px solid rgb(244 244 245 / 0.5);
+  border-radius: 0 2px 2px 0;
+  color: var(--text);
+  font-size: 0.625rem;
+  line-height: 1.35;
+  white-space: normal;
+}
+.val-marker.is-left .val-marker-label {
+  left: auto;
+  right: 8px;
+  border-left: 0;
+  border-right: 1px solid rgb(244 244 245 / 0.5);
+  border-radius: 2px 0 0 2px;
+}
+.val-clip-note {
+  margin: 4px 0 0;
+  font-size: 0.6875rem;
+}
+#panel-validation .scenario-note {
+  min-height: 3em; /* two lines at line-height 1.5, so wrapping never shifts the tape */
+}
+.val-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  font-size: 0.75rem;
+}
+.val-status[hidden] {
+  display: none;
+}
+.val-status.is-error {
+  color: var(--text);
+}
+.val-table {
+  aspect-ratio: auto;
+  height: 184px;
+  margin: 0;
+}
+
 /* Scroll sub-steps: the console carries data-focus while scroll drives it; everything outside
    the focus dims (opacity only). Cleared for good once the visitor takes over. */
 .console[data-focus="flows-active"] .scenario-summary,
@@ -1493,24 +1589,19 @@ html[data-story="pinned"] .console-panel.is-selected {
 .console[data-focus="flows-total"] .idle-toggle,
 .console[data-focus="monitor-strait"] .monitor-side,
 .console[data-focus="monitor-count"] .monitor-chart-wrap,
-.console[data-focus="verdicts-settings"] .verdict {
+.console[data-focus="verdicts-settings"] .val-tape-wrap {
   opacity: 0.4;
 }
 
-@media (max-width: 1100px) {
-  .verdict-layout {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-}
 @media (max-width: 900px) {
   .flows-layout,
   .monitor-layout {
     grid-template-columns: 1fr;
     gap: 18px;
   }
-  .verdicts {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  .val-top {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 }
 
@@ -1564,9 +1655,6 @@ html[data-story="pinned"] .console-panel.is-selected {
   .term-table td + td {
     padding-left: 14px;
   }
-  .verdicts {
-    grid-template-columns: 1fr;
-  }
   .big-numbers {
     gap: 10px;
   }
@@ -1587,8 +1675,7 @@ html[data-story="pinned"] .console-panel.is-selected {
   .console-panel,
   .term-table td,
   .panel-foot,
-  .panel-settings,
-  .verdict {
+  .val-tape-wrap {
     transition: none;
   }
 }

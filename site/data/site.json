@@ -2756,7 +2756,7 @@
   "chokepoints_monitored": 6,
   "risk_models": 5,
   "routes": 10,
-  "tests_passed": 122,
+  "tests_passed": 123,
   "tests_skipped": 1
  },
  "hormuz_closure": {
@@ -8961,6 +8961,11 @@
    }
   ],
   "note": "Verdicts depend on the book, confidence level, window and data date; other settings give other verdicts.",
+  "rule": {
+   "basel_window_days": 250,
+   "fail_level": 0.01,
+   "review_level": 0.05
+  },
   "settings": {
    "book": "plan-implied inventory in transit, unhedged",
    "confidence": 0.99,

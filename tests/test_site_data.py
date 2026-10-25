@@ -239,6 +239,17 @@ def test_monitor_series_has_no_look_ahead():
     assert after["baseline"] == before["baseline"]  # the baseline is lagged by four weeks
 
 
+def test_negative_print_day_is_placed_on_the_axis_with_the_next_day_carrying_the_move():
+    series = {"start": "2020-04-01", "offsets": [0, 16, 19, 20], "loss": [1.0, 2.0, 0.5, 9.0]}
+    out = site.negative_print_day(series, {"date": "2020-04-20", "value": -36.98}, 18.31)
+    assert out["offset"] == 19 and out["wti"] == -36.98 and out["model_wti"] == 18.31
+    assert out["in_test"] is True
+    assert out["next_offset"] == 20 and out["next_loss"] == 9.0
+    gap = {**series, "offsets": [0, 16, 20], "loss": [1.0, 2.0, 9.0]}
+    dropped = site.negative_print_day(gap, {"date": "2020-04-20", "value": -36.98}, None)
+    assert dropped["in_test"] is False and dropped["next_offset"] == 20
+
+
 def test_build_refuses_synthetic_inputs():
     prices = pd.DataFrame(
         {"BRENT": [80.0], "WTI": [76.0]}, index=pd.DatetimeIndex(["2024-01-02"], name="date")
@@ -281,6 +292,20 @@ def test_build_end_to_end_on_small_snapshot_like_inputs():
     assert payload["crises"]["wti_2020"]["low"]["value"] == -36.98
     assert payload["scenarios"]["order"][0] == "base"
     assert payload["monitor_series"]["days"] == site.MONITOR_SERIES_DAYS
+    series = payload["validation_series"]
+    n = len(series["offsets"])
+    assert len(series["loss"]) == n and series["offsets"][0] == 0
+    for model in payload["validation"]["models"]:
+        daily = series["models"][model["model"]]
+        assert len(daily["var"]) == n
+        # Exception days are the days with loss above VaR (rounding to 0.01m aside).
+        assert len(daily["exceptions"]) == model["exceptions"]
+        for i in daily["exceptions"]:
+            assert series["loss"][i] >= daily["var"][i] - 0.01
+    worst = series["extremes"]["largest_loss"]
+    assert worst["loss"] == max(series["loss"])
+    assert series["negative_print"]["date"] == "2020-04-20"
+    assert payload["validation"]["rule"]["fail_level"] == 0.01
 
 
 def test_chokepoint_status_compares_last_week_with_the_reference_year():

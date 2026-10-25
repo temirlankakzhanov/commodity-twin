@@ -756,6 +756,463 @@
     show(first, false);
   }
 
+  // ------------------------------------------------------------------ validation
+
+  var usdm = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  function money(v) {
+    return (v < 0 ? MINUS : "") + usdm.format(Math.abs(v));
+  }
+  function pText(p) {
+    return p < 0.0001 ? "p < 0.0001" : "p = " + p.toFixed(4);
+  }
+  function pct(x) {
+    return Math.round(x * 100) + "%";
+  }
+  function capital(text) {
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  // The verdict sentence, built only from the model's numbers and the verdict rule in site.json
+  // (FAIL: red zone or CC p below fail_level; REVIEW: yellow zone or a p-value below review_level).
+  function verdictSentence(m, rule) {
+    var zone = m.exc_last_250 + " exception" + (m.exc_last_250 === 1 ? "" : "s") + " in the last " +
+      rule.basel_window_days + " days put it in the Basel " + m.basel_zone + " zone";
+    var reasons = [];
+    if (m.verdict === "FAIL") {
+      if (m.cond_coverage_p < rule.fail_level) {
+        reasons.push("the conditional-coverage test rejects it (" + pText(m.cond_coverage_p) + ", below " + pct(rule.fail_level) + ")");
+      }
+      if (m.basel_zone === "red") reasons.push(zone);
+      return capital(reasons.join(", and ")) + ".";
+    }
+    if (m.verdict === "REVIEW") {
+      var coverageOk = m.kupiec_p >= rule.review_level && m.cond_coverage_p >= rule.review_level;
+      if (m.basel_zone === "yellow") reasons.push(zone);
+      if (m.kupiec_p < rule.review_level) reasons.push("Kupiec " + pText(m.kupiec_p) + " is below " + pct(rule.review_level));
+      if (m.cond_coverage_p < rule.review_level) reasons.push("conditional-coverage " + pText(m.cond_coverage_p) + " is below " + pct(rule.review_level));
+      return (coverageOk ? "Coverage tests pass, but " : "") + (coverageOk ? reasons.join(", and ") : capital(reasons.join(", and "))) + ".";
+    }
+    return (
+      "Coverage tests pass (Kupiec " + pText(m.kupiec_p) + ", CC " + pText(m.cond_coverage_p) + ") and the last " +
+      rule.basel_window_days + " days are in the Basel " + m.basel_zone + " zone."
+    );
+  }
+
+  var VERDICT_ICON = { PASS: [ICONS.PASS, false], REVIEW: [ICONS.REVIEW, false], FAIL: [ICONS.FAIL, true] };
+
+  function verdictLabel(verdict) {
+    var label = make("span", "verdict-label verdict-" + verdict.toLowerCase());
+    var spec = VERDICT_ICON[verdict] || [[], false];
+    label.appendChild(icon(spec[0], spec[1]));
+    label.appendChild(document.createTextNode(verdict));
+    return label;
+  }
+
+  function validation(site, get) {
+    var v = site.validation;
+    var models = v.models;
+    var set = v.settings;
+    var exp = set.exposures_usd;
+    var bookAmounts = Object.keys(exp)
+      .sort(function (a, b) {
+        return exp[b] - exp[a];
+      })
+      .map(function (k) {
+        return k + " " + (exp[k] / 1e9).toFixed(2) + "bn";
+      })
+      .join(", ");
+    get("val-book").textContent =
+      "Unhedged plan-implied book (" + bookAmounts + " USD): a model test, not a trading record.";
+    get("val-settings").textContent =
+      Math.round(set.confidence * 100) + "% VaR · " + set.window_days + "-day window · " +
+      int.format(models[0].observations) + " daily forecasts from " + formatDate(set.first_forecast);
+    get("val-rule").textContent =
+      "Verdict rule: FAIL if the Basel zone is red or the conditional-coverage p is below " + pct(v.rule.fail_level) +
+      "; REVIEW if the zone is yellow or a p-value is below " + pct(v.rule.review_level) + "; otherwise PASS.";
+    get("val-note").textContent = v.note;
+
+    var current = models[0];
+    var series = null;
+    var tape = get("val-tape");
+    var canvas = get("val-canvas");
+    var years = get("val-years");
+    var marker = get("val-marker");
+    var markerLabel = get("val-marker-label");
+    var lead = get("val-marker-lead");
+    var dot = get("val-marker-dot");
+    var cross = get("val-cross");
+    var tip = get("val-tip");
+    var status = get("val-status");
+    var tableBox = get("val-table");
+    var toggle = get("val-table-toggle");
+    var legend = get("val-legend");
+    var scale = { yMax: 1 };
+    var hits = {};
+    var dates = [];
+
+    function dateAt(i) {
+      return dates[i];
+    }
+
+    function summary(m, animate) {
+      get("val-name").textContent = m.model + ":";
+      var verdict = get("val-verdict");
+      verdict.textContent = "";
+      verdict.appendChild(verdictLabel(m.verdict));
+      get("val-sentence").textContent = verdictSentence(m, v.rule);
+      var kpis = get("val-kpis");
+      kpis.textContent = "";
+      [
+        ["exceptions", int.format(m.exceptions)],
+        ["expected", String(m.expected)],
+        ["last " + v.rule.basel_window_days + " days", m.exc_last_250 + " · " + m.basel_zone],
+      ].forEach(function (pair) {
+        var block = make("div", "kpi");
+        block.appendChild(make("dt", "", pair[0]));
+        block.appendChild(make("dd", "", pair[1]));
+        kpis.appendChild(block);
+      });
+      rows(get("val-tests"), [
+        ["model", m.model],
+        ["Kupiec", pText(m.kupiec_p)],
+        ["cond. coverage", pText(m.cond_coverage_p)],
+        ["ES Z2", fixed(m.es_z2, 2) + " (above 0: ES too low)"],
+        ["Basel zone", m.basel_zone + " (" + m.exc_last_250 + " in the last " + v.rule.basel_window_days + " days)"],
+      ]);
+      if (animate) refresh([root.querySelector("#panel-validation .scenario-summary")]);
+    }
+
+    // The tape: one canvas, drawn once per model or width change. Per pixel column it shows the
+    // largest loss and the mean VaR; exception days are ticks in a strip below.
+    function draw() {
+      if (!series) return;
+      var width = tape.clientWidth;
+      var height = tape.clientHeight;
+      if (!width || !height) return;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      var ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      var strip = 14;
+      var gap = 6;
+      var top = 46; // the band above holds the marker label
+      var base = height - strip - gap - 16; // year labels below the strip
+      var plotH = base - top;
+      var n = series.loss.length;
+      var varArr = series.models[current.model].var;
+      scale.base = base;
+      scale.top = top;
+      scale.plotH = plotH;
+      scale.width = width;
+      ctx.strokeStyle = "rgb(42 42 46)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, base + 0.5);
+      ctx.lineTo(width, base + 0.5);
+      ctx.stroke();
+      var cols = Math.max(1, Math.floor(width));
+      var maxLoss = new Float64Array(cols);
+      var varSum = new Float64Array(cols);
+      var varCount = new Uint16Array(cols);
+      for (var i = 0; i < n; i += 1) {
+        var c = Math.min(cols - 1, Math.floor((i / (n - 1)) * (cols - 1)));
+        if (series.loss[i] > maxLoss[c]) maxLoss[c] = series.loss[i];
+        varSum[c] += varArr[i];
+        varCount[c] += 1;
+      }
+      var y = function (val) {
+        return base - (Math.min(val, scale.yMax) / scale.yMax) * plotH;
+      };
+      ctx.fillStyle = "rgb(82 82 91)";
+      for (var k = 0; k < cols; k += 1) {
+        if (maxLoss[k] > 0) {
+          var yy = y(maxLoss[k]);
+          ctx.fillRect(k, yy, 1, base - yy);
+        }
+      }
+      ctx.strokeStyle = "#ff6a1f";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      var pen = false;
+      for (var q = 0; q < cols; q += 1) {
+        if (!varCount[q]) continue;
+        var vy = y(varSum[q] / varCount[q]);
+        if (pen) ctx.lineTo(q + 0.5, vy);
+        else ctx.moveTo(q + 0.5, vy);
+        pen = true;
+      }
+      ctx.stroke();
+      ctx.fillStyle = "#e5383b";
+      series.models[current.model].exceptions.forEach(function (idx) {
+        var x = (idx / (n - 1)) * (width - 1);
+        ctx.fillRect(Math.round(x) - 1, base + gap, 2, strip);
+      });
+      // Bars clipped at the top get a bright cap so the clipping is visible.
+      ctx.fillStyle = "#f4f4f5";
+      for (var t = 0; t < cols; t += 1) {
+        if (maxLoss[t] > scale.yMax) ctx.fillRect(t - 2, top - 4, 5, 3);
+      }
+      placeMarker();
+    }
+
+    function placeMarker() {
+      var ext = series.extremes && series.extremes.largest_loss;
+      if (!ext) return;
+      var idx = series.offsets.indexOf(ext.offset);
+      if (idx < 0) return;
+      var x = (idx / (series.loss.length - 1)) * (scale.width - 1);
+      var dotY = scale.top - 9; // just above the cap of the (clipped) bar
+      marker.style.transform = "translateX(" + x.toFixed(1) + "px)";
+      lead.style.height = dotY - 5 + "px";
+      dot.style.top = dotY + "px";
+      marker.classList.toggle("is-left", x > scale.width * 0.6);
+      marker.hidden = false;
+    }
+
+    function setYears() {
+      years.textContent = "";
+      var n = dates.length;
+      var last = "";
+      dates.forEach(function (iso, i) {
+        var yr = iso.slice(0, 4);
+        if (yr !== last) {
+          last = yr;
+          if (Number(yr) % 2 === 0 || n < 1500) {
+            var span = make("span", "", yr);
+            span.style.left = ((i / (n - 1)) * 100).toFixed(2) + "%";
+            years.appendChild(span);
+          }
+        }
+      });
+    }
+
+    function buildTable(m) {
+      var table = make("table", "term-table");
+      table.appendChild(make("caption", "visually-hidden", m.model + ": exception days"));
+      var head = make("tr");
+      ["date", "loss, USD m", "VaR, USD m", "excess"].forEach(function (h, k) {
+        var th = make("th", k ? "num" : "", h);
+        th.scope = "col";
+        head.appendChild(th);
+      });
+      var thead = make("thead");
+      thead.appendChild(head);
+      table.appendChild(thead);
+      var tbody = make("tbody");
+      var varArr = series.models[m.model].var;
+      series.models[m.model].exceptions.forEach(function (i) {
+        var tr = make("tr");
+        tr.appendChild(make("td", "", formatDate(dateAt(i))));
+        tr.appendChild(make("td", "num", money(series.loss[i])));
+        tr.appendChild(make("td", "num", money(varArr[i])));
+        tr.appendChild(make("td", "num", money(series.loss[i] - varArr[i])));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      tableBox.textContent = "";
+      tableBox.appendChild(table);
+      tableBox.scrollTop = 0;
+      tableFade();
+    }
+
+    function tableFade() {
+      var more = !tableBox.hidden && tableBox.scrollTop + tableBox.clientHeight < tableBox.scrollHeight - 2;
+      tableBox.classList.toggle("has-more", more);
+    }
+    tableBox.addEventListener("scroll", tableFade, { passive: true });
+    toggle.addEventListener("click", function () {
+      var open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      tableBox.hidden = !open;
+      tape.hidden = open;
+      legend.hidden = open;
+      if (open) hideCross();
+      toggle.textContent = open ? "Show as tape" : "Show as table";
+      tableFade();
+      if (!open) draw();
+    });
+
+    function show(m, animate) {
+      current = m;
+      summary(m, animate);
+      if (!series) return;
+      hits = {};
+      series.models[m.model].exceptions.forEach(function (i) {
+        hits[i] = true;
+      });
+      var varArr = series.models[m.model].var.slice().sort(function (a, b) {
+        return a - b;
+      });
+      var lossSorted = series.loss.slice().sort(function (a, b) {
+        return a - b;
+      });
+      // The scale stops at the 99th percentile of losses and VaR; taller bars are clipped (capped).
+      scale.yMax = Math.max(varArr[Math.floor(varArr.length * 0.99)], lossSorted[Math.floor(lossSorted.length * 0.99)]);
+      tape.setAttribute(
+        "aria-label",
+        m.model + ": daily losses, VaR and " + m.exceptions + " exception days from " + formatDate(dateAt(0)) +
+          " to " + formatDate(dateAt(dates.length - 1)) + ". Use the arrow keys to step through exceptions, or open the table."
+      );
+      hideCross();
+      draw();
+      buildTable(m);
+    }
+
+    // Crosshair: the tape box is read once per hover; moves are transform-only, one per frame.
+    var box = null;
+    var pending = null;
+    var shown = -1;
+    function hideCross() {
+      cross.classList.remove("is-on");
+      tip.classList.remove("is-on");
+      marker.classList.remove("is-muted");
+      shown = -1;
+    }
+    function place(idx) {
+      if (!series || !box || idx === shown) return;
+      marker.classList.add("is-muted");
+      shown = idx;
+      var n = series.loss.length;
+      var x = (idx / (n - 1)) * (box.width - 1);
+      cross.style.transform = "translateX(" + x.toFixed(1) + "px)";
+      var varNow = series.models[current.model].var[idx];
+      var loss = series.loss[idx];
+      tip.textContent = "";
+      tip.appendChild(
+        make(
+          "span",
+          "",
+          formatDate(dateAt(idx)) + " · " + (loss >= 0 ? "loss " + money(loss) : "gain " + money(-loss)) +
+            " · VaR " + money(varNow) + " (USD m)"
+        )
+      );
+      if (hits[idx]) tip.appendChild(alertChip("exception"));
+      var left = x > box.width * 0.6;
+      tip.style.transform = "translateX(" + (left ? x - 8 : x + 8).toFixed(1) + "px) translateX(" + (left ? "-100%" : "0") + ")";
+      cross.classList.add("is-on");
+      tip.classList.add("is-on");
+    }
+    tape.addEventListener("pointerenter", function () {
+      box = tape.getBoundingClientRect();
+    });
+    tape.addEventListener("pointermove", function (event) {
+      if (!series) return;
+      if (!box) box = tape.getBoundingClientRect();
+      var rel = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+      var idx = Math.round(rel * (series.loss.length - 1));
+      if (pending === null) {
+        pending = window.requestAnimationFrame(function () {
+          pending = null;
+          place(idx);
+        });
+      }
+    });
+    tape.addEventListener("pointerleave", function () {
+      box = null;
+      hideCross();
+    });
+    tape.addEventListener("blur", hideCross);
+    tape.addEventListener("keydown", function (event) {
+      if (!series) return;
+      var list = series.models[current.model].exceptions;
+      var at = shown < 0 ? -1 : shown;
+      var next = null;
+      if (event.key === "ArrowRight") {
+        next = list.filter(function (i) {
+          return i > at;
+        })[0];
+      } else if (event.key === "ArrowLeft") {
+        var before = list.filter(function (i) {
+          return i < (at < 0 ? series.loss.length : at);
+        });
+        next = before[before.length - 1];
+      } else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = series.loss.length - 1;
+      else return;
+      event.preventDefault();
+      if (next === undefined || next === null) return;
+      box = tape.getBoundingClientRect();
+      place(next);
+    });
+
+    if (window.ResizeObserver) {
+      var lastW = 0;
+      new window.ResizeObserver(function (entries) {
+        var w = Math.round(entries[0].contentRect.width);
+        if (w !== lastW) {
+          lastW = w;
+          draw();
+        }
+      }).observe(tape);
+    }
+
+    var bar = get("model-chips");
+    bar.textContent = "";
+    var chips = models.map(function (m, i) {
+      var chip = make("button", "scenario-chip");
+      chip.type = "button";
+      chip.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+      chip.setAttribute("data-demo", "model-chip-" + slug(m.model));
+      chip.textContent = m.model;
+      chip.addEventListener("click", function () {
+        if (chip.getAttribute("aria-pressed") === "true") return;
+        chips.forEach(function (c) {
+          c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+        });
+        stopAuto();
+        show(m, true);
+      });
+      bar.appendChild(chip);
+      return chip;
+    });
+    summary(models[0], false);
+
+    // The daily series is preloaded in idle time (data.js); the summary above never waits for it.
+    var pendingSeries = window.SITE_VALIDATION || Promise.reject(new Error("no loader"));
+    pendingSeries.then(
+      function (data) {
+        series = data;
+        var start = new Date(data.start + "T00:00:00Z").getTime();
+        dates = data.offsets.map(function (o) {
+          return new Date(start + o * 86400000).toISOString().slice(0, 10);
+        });
+        status.hidden = true;
+        setYears();
+        var np = data.negative_print;
+        var ext = data.extremes.largest_loss;
+        var gain = data.extremes.largest_gain;
+        var worstDate = new Date(start + ext.offset * 86400000).toISOString().slice(0, 10);
+        var gainDate = new Date(start + gain.offset * 86400000).toISOString().slice(0, 10);
+        var carried = np && np.next_offset === ext.offset;
+        markerLabel.textContent = carried
+          ? "Largest loss in the test. WTI " + fixed(np.wti, 2) + " on " + formatDate(np.date).replace(/ \d{4}$/, "") + " was replaced by the previous price"
+          : "Largest loss in the test";
+        var gainIdx = data.offsets.indexOf(gain.offset);
+        var gainHit = data.order.some(function (name) {
+          return data.models[name].exceptions.indexOf(gainIdx) >= 0;
+        });
+        get("val-wti").textContent =
+          (np
+            ? "On " + formatDate(np.date) + " WTI settled at " + fixed(np.wti, 2) + " USD/bbl. A log return is undefined there, so price cleaning carries the previous price (" +
+              fixed(np.model_wti, 2) + ") forward: that day stays in the test with no WTI move, and " + formatDate(worstDate) +
+              " carries the whole drop, a loss of " + int.format(ext.loss) + " USD m, the largest in the test. "
+            : "") +
+          formatDate(gainDate) + " brought the largest gain (" + int.format(-gain.loss) + " USD m)" +
+          (gainHit ? "." : ", not an exception: exceptions are losses above VaR.") +
+          "";
+        show(current, false);
+      },
+      function () {
+        status.textContent = "The daily backtest could not be loaded. The verdicts above are complete.";
+        status.classList.add("is-error");
+      }
+    );
+  }
+
   // ------------------------------------------------------------------ content
 
   function fill(site, geo) {
@@ -767,52 +1224,7 @@
 
     monitor(site, get);
 
-    // Verdicts, with the settings they depend on right next to them.
-    var v = site.validation;
-    var models = v.models;
-    get("verdicts-meta").textContent = models.length + " models";
-    var exp = v.settings.exposures_usd;
-    rows(get("verdicts-settings"), [
-      ["confidence", Math.round(v.settings.confidence * 100) + "%"],
-      ["window", v.settings.window_days + " days"],
-      ["forecasts", int.format(models[0].observations) + " days from " + formatDate(v.settings.first_forecast)],
-      ["book", v.settings.book],
-      [
-        "exposure",
-        Object.keys(exp)
-          .sort(function (a, b) {
-            return exp[b] - exp[a];
-          })
-          .map(function (k) {
-            return k + " " + (exp[k] / 1e9).toFixed(2) + "bn USD";
-          })
-          .join(" · "),
-      ],
-    ]);
-    get("verdicts-note").textContent = v.note;
-    var list = get("verdicts-list");
-    list.textContent = "";
-    models.forEach(function (m) {
-      var li = make("li", "verdict");
-      var label = make("span", "verdict-label verdict-" + m.verdict.toLowerCase());
-      label.appendChild(icon(ICONS[m.verdict] || [], m.verdict === "FAIL"));
-      label.appendChild(document.createTextNode(m.verdict));
-      li.appendChild(label);
-      li.appendChild(make("p", "verdict-model", m.model));
-      var stats = make("ul", "verdict-stats");
-      [
-        "exceptions " + m.exceptions,
-        "expected " + m.expected,
-        "Kupiec p " + m.kupiec_p.toFixed(4),
-        "CC p " + m.cond_coverage_p.toFixed(4),
-        "Basel zone " + m.basel_zone,
-        "ES Z2 " + fixed(m.es_z2, 2),
-      ].forEach(function (stat) {
-        stats.appendChild(make("li", "", stat));
-      });
-      li.appendChild(stats);
-      list.appendChild(li);
-    });
+    validation(site, get);
   }
 
   // ------------------------------------------------------------------ tabs and disclosures

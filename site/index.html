@@ -34,8 +34,7 @@
         <div class="stage" data-stage="main">
           <div class="stage-layer stage-land"><svg class="map-svg" data-map="land" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
           <div class="stage-layer stage-idle"><svg class="map-svg" data-map="idle" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
-          <div class="stage-layer stage-lanes"><svg class="map-svg" data-map="lanes" role="img" aria-labelledby="map-title map-desc" preserveAspectRatio="xMidYMid slice">
-            <title id="map-title">Illustrative crude-oil sea lanes</title>
+          <div class="stage-layer stage-lanes"><svg class="map-svg" data-map="lanes" role="img" aria-label="Illustrative crude-oil sea lanes" aria-describedby="map-desc" preserveAspectRatio="xMidYMid slice">
             <desc id="map-desc">World map of the model's demonstration network: three loading ports, three discharge ports and ten sea lanes. Lanes used in the base-case plan are highlighted. Positions are illustrative, not ship tracking. Further down, the map zooms to the Strait of Hormuz for the closure scenario described in the panel.</desc>
           </svg></div>
           <div class="stage-layer stage-fleet"><svg class="map-svg" data-map="fleet" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
@@ -75,8 +74,7 @@
         <div class="stage closure-stage" data-stage="closure">
           <div class="stage-layer stage-land"><svg class="map-svg" data-map="land" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
           <div class="stage-layer stage-idle"><svg class="map-svg" data-map="idle" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
-          <div class="stage-layer stage-lanes"><svg class="map-svg" data-map="lanes" role="img" aria-labelledby="closure-map-title closure-map-desc" preserveAspectRatio="xMidYMid slice">
-            <title id="closure-map-title">Scenario map: the Strait of Hormuz closed on the illustrative network</title>
+          <div class="stage-layer stage-lanes"><svg class="map-svg" data-map="lanes" role="img" aria-label="Scenario map: the Strait of Hormuz closed on the illustrative network" aria-describedby="closure-map-desc" preserveAspectRatio="xMidYMid slice">
             <desc id="closure-map-desc">The map is zoomed to the Strait of Hormuz. The lane through Hormuz that the base-case plan uses is marked closed in the scenario and its tanker has stopped before the strait. Markers show recent transit calls reported by IMF PortWatch. The scenario results and the traffic figures are written out in the panel.</desc>
           </svg></div>
           <div class="stage-layer stage-fleet"><svg class="map-svg" data-map="fleet" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
@@ -209,23 +207,49 @@
 
             <div class="console-panel" role="tabpanel" id="panel-validation" aria-labelledby="tab-validation" tabindex="0" data-panel="2">
               <div class="panel-head">
-                <h3 class="panel-title">VaR/ES backtest · verdicts</h3>
-                <p class="panel-meta" data-h="verdicts-meta"></p>
+                <h3 class="panel-title">VaR/ES backtest</h3>
                 <div class="info">
-                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-validation"><span aria-hidden="true">?</span><span class="visually-hidden">About the validation lab</span></button>
+                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-validation"><span aria-hidden="true">?</span><span class="visually-hidden">About the backtest and this model</span></button>
                   <div class="info-pop" id="info-validation" hidden>
-                    <p>Each model forecasts VaR and ES day by day on the plan's own book. Kupiec and conditional-coverage tests, the Basel traffic light and an ES Z2 test decide PASS, REVIEW or FAIL.</p>
-                    <p>Exception: a day with loss above VaR. ES Z2 above zero means ES is too low.</p>
+                    <p>Each model forecasts tomorrow's VaR and ES from data up to today. An exception is a day with loss above VaR.</p>
+                    <dl class="info-list" data-h="val-tests"></dl>
+                    <p data-h="val-rule"></p>
+                    <p data-h="val-wti"></p>
+                    <p data-h="val-note"></p>
                   </div>
                 </div>
               </div>
-              <div class="verdict-layout">
-                <div class="panel-settings">
-                  <dl class="settings-list" data-h="verdicts-settings"></dl>
-                  <p class="panel-note" data-h="verdicts-note"></p>
+              <div class="scenario-bar" role="group" aria-label="Risk model" data-h="model-chips" data-demo="model-chips"></div>
+              <div class="val-top">
+                <div class="scenario-summary" role="status" aria-live="polite" data-demo="val-verdict">
+                  <p class="visually-hidden" data-h="val-name"></p>
+                  <p class="val-verdict" data-h="val-verdict"></p>
+                  <p class="scenario-note" data-h="val-sentence"></p>
                 </div>
-                <ul class="verdicts" data-h="verdicts-list"></ul>
+                <dl class="big-numbers" data-h="val-kpis"></dl>
               </div>
+              <p class="panel-note" data-h="val-settings"></p>
+              <div class="val-tape-wrap">
+                <div class="monitor-toolbar">
+                  <div class="monitor-legend" data-h="val-legend" aria-hidden="true">
+                    <span class="legend-item"><span class="legend-bar"></span>daily loss</span>
+                    <span class="legend-item"><span class="legend-line legend-traffic"></span>VaR (99%)</span>
+                    <span class="legend-item"><svg class="alert-icon" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5"/><path d="M2.6 9.4 9.4 2.6"/></svg><span class="legend-tick"></span>exception (loss &gt; VaR)</span>
+                  </div>
+                  <button type="button" class="idle-toggle" aria-expanded="false" aria-controls="val-table" data-h="val-table-toggle" data-demo="val-table-toggle">Show as table</button>
+                </div>
+                <div class="val-tape" tabindex="0" data-h="val-tape" data-demo="val-tape" aria-describedby="val-tip" role="img" aria-label="Daily losses, VaR and exception days">
+                  <canvas class="val-canvas" data-h="val-canvas" aria-hidden="true"></canvas>
+                  <div class="val-years" data-h="val-years" aria-hidden="true"></div>
+                  <div class="val-marker" data-h="val-marker" data-demo="val-marker" aria-hidden="true" hidden><span class="val-marker-lead" data-h="val-marker-lead"></span><span class="val-marker-dot" data-h="val-marker-dot"></span><span class="val-marker-label" data-h="val-marker-label"></span></div>
+                  <div class="monitor-cross val-cross" data-h="val-cross" aria-hidden="true"></div>
+                  <div class="monitor-tip" id="val-tip" data-h="val-tip" role="status" aria-live="polite"></div>
+                  <p class="val-status" data-h="val-status">Loading the daily backtest…</p>
+                </div>
+                <div class="table-box val-table" id="val-table" data-h="val-table" tabindex="0" hidden></div>
+                <p class="val-clip-note" data-h="val-clip-note">The scale stops at the 99th percentile of losses and VaR: taller bars are clipped and capped; hover shows the true loss.</p>
+              </div>
+              <p class="route-map-note" data-h="val-book"></p>
             </div>
           </div>
         </section>
