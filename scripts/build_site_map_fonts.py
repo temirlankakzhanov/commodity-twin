@@ -121,7 +121,7 @@ ROUTES: dict[str, list[list[tuple[float, float]]]] = {
     "Ras Tanura-Ningbo": [
         [*_GULF_EXIT, (66.0, 17.0), (78.0, 5.0), (81.0, 5.0), *_MALACCA_TO_NINGBO]
     ],
-    "Ras Tanura-Sikka": [[*_GULF_EXIT[:4], (61.0, 24.4), (66.0, 23.5), (69.8, 22.4)]],
+    "Ras Tanura-Sikka": [[*_GULF_EXIT[:6], (61.0, 24.4), (66.0, 23.5), (69.8, 22.4)]],
     "Ras Tanura-Rotterdam via Suez": [
         [
             *_GULF_EXIT,

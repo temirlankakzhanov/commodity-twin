@@ -4,6 +4,57 @@
   "snapshot_fetched": "2026-10-24",
   "transits": "2026-10-18"
  },
+ "chokepoint_status": {
+  "places": [
+   {
+    "chokepoint": "Strait of Hormuz",
+    "status": {
+     "change_pct": -96,
+     "recent_mean": 3.7,
+     "reference_mean": 85.5
+    }
+   },
+   {
+    "chokepoint": "Bab el-Mandeb Strait",
+    "status": {
+     "change_pct": -21,
+     "recent_mean": 26.4,
+     "reference_mean": 33.5
+    }
+   },
+   {
+    "chokepoint": "Suez Canal",
+    "status": {
+     "change_pct": 15,
+     "recent_mean": 44.3,
+     "reference_mean": 38.5
+    }
+   },
+   {
+    "chokepoint": "Malacca Strait",
+    "status": {
+     "change_pct": -8,
+     "recent_mean": 215.1,
+     "reference_mean": 234.5
+    }
+   },
+   {
+    "chokepoint": "Panama Canal",
+    "status": {
+     "change_pct": -11,
+     "recent_mean": 27.7,
+     "reference_mean": 31.1
+    }
+   }
+  ],
+  "reference_year": "2025",
+  "source": "UN Global Platform; IMF PortWatch",
+  "unit": "mean daily transit calls, all vessel types",
+  "window": [
+   "2026-10-12",
+   "2026-10-18"
+  ]
+ },
  "crises": {
   "brent_2022": {
    "peak": {
@@ -2704,7 +2755,7 @@
   "chokepoints_monitored": 6,
   "risk_models": 5,
   "routes": 10,
-  "tests_passed": 114,
+  "tests_passed": 116,
   "tests_skipped": 1
  },
  "hormuz_closure": {
@@ -3092,6 +3143,10 @@
     3.6
    ]
   ],
+  "period_2025": [
+   "2025-01-01",
+   "2025-12-31"
+  ],
   "source": "UN Global Platform; IMF PortWatch",
   "window": [
    "2026-08-20",
@@ -3154,6 +3209,10 @@
    "zscore": 1.652
   }
  ],
+ "monitor_method": {
+  "baseline_gap_days": 28,
+  "baseline_window_days": 180
+ },
  "network": {
   "destinations": [
    "Rotterdam",

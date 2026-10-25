@@ -156,3 +156,31 @@ def test_build_end_to_end_on_small_snapshot_like_inputs():
     assert {m["verdict"] for m in payload["validation"]["models"]} <= {"PASS", "REVIEW", "FAIL"}
     assert payload["hormuz_traffic"]["mean_2025"] == 90.0
     assert payload["crises"]["wti_2020"]["low"]["value"] == -36.98
+
+
+def test_chokepoint_status_compares_last_week_with_the_reference_year():
+    year = _transits("A", [10.0] * 365, "2025-01-01")  # 2025: mean 10
+    recent = _transits("A", [4, 4, 4, 4, 5, 5, 2], "2026-01-01")  # mean 4
+    gappy = _transits("B", [10.0] * 365, "2025-01-01")
+    gappy_recent = _transits("B", [1, 1, None, 1, 1, 1, 1], "2026-01-01")
+    short = _transits("C", [10.0] * 100, "2025-01-01")
+    short_recent = _transits("C", [1] * 7, "2026-01-01")
+    frame = pd.concat([year, recent, gappy, gappy_recent, short, short_recent])
+    out = site.chokepoint_status(frame, places=("A", "B", "C"))
+    assert out["window"] == ["2026-01-01", "2026-01-07"]
+    rows = {r["chokepoint"]: r["status"] for r in out["places"]}
+    assert rows["A"] == {"recent_mean": 4.0, "reference_mean": 10.0, "change_pct": -60}
+    assert rows["B"] is None  # a missing day in the recent window
+    assert rows["C"] is None  # too little reference data
+
+
+def test_chokepoint_status_uses_only_the_window_and_the_reference_year():
+    older = _transits("A", [50.0] * 366, "2024-01-01")
+    year = _transits("A", [10.0] * 365, "2025-01-01")
+    recent = _transits("A", [4.0] * 7, "2026-01-01")
+    frame = pd.concat([older, year, recent])
+    base = site.chokepoint_status(frame, places=("A",))
+    changed = frame.copy()
+    changed.loc[changed["date"] < "2025-01-01", "n_total"] = 999.0
+    assert site.chokepoint_status(changed, places=("A",)) == base
+    assert base["places"][0]["status"]["reference_mean"] == 10.0

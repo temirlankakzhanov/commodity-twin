@@ -29,7 +29,12 @@ from mtwin.data import DataService
 from mtwin.data.service import CHOKEPOINTS, LoadResult
 from mtwin.risk import MODEL_LABELS, ForecastConfig, run_validation
 from mtwin.risk.returns import log_returns, pnl_from_exposures
-from mtwin.signals.chokepoints import compute_signals, latest_flags
+from mtwin.signals.chokepoints import (
+    BASELINE_GAP,
+    BASELINE_WINDOW,
+    compute_signals,
+    latest_flags,
+)
 from mtwin.trading import Scenario, book_exposures, default_network, optimize_flows
 from mtwin.trading.network import Network
 from mtwin.trading.optimizer import FlowPlan
@@ -40,6 +45,15 @@ RAW_WTI = ROOT / "data" / "snapshots" / "site-raw-DCOILWTICO-2020.csv"
 
 HORMUZ = "Strait of Hormuz"
 QUALITY_WINDOW_DAYS = 60
+STATUS_WINDOW_DAYS = 7
+STATUS_PLACES = (
+    "Strait of Hormuz",
+    "Bab el-Mandeb Strait",
+    "Suez Canal",
+    "Malacca Strait",
+    "Panama Canal",
+)
+MIN_REFERENCE_DAYS = 330  # a reference year with fewer reported days gives no status
 VALIDATION_CFG = ForecastConfig(alpha=0.99, window=500)  # the Risk tab defaults
 HEDGE_RATIO = 0.0  # the Risk tab default: plan-implied inventory, unhedged
 
@@ -159,9 +173,50 @@ def hormuz_traffic(transits: pd.DataFrame) -> dict[str, Any]:
         "label": "PortWatch-reported transit calls",
         "monthly": [[ts.strftime("%Y-%m"), round(float(v), 1)] for ts, v in monthly.items()],
         "mean_2025": round(float(year_2025.mean()), 1),
+        "period_2025": [
+            year_2025.index.min().strftime("%Y-%m-%d"),
+            year_2025.index.max().strftime("%Y-%m-%d"),
+        ],
         "mean_last_60d": round(float(recent.mean()), 1),
         "window": [recent.index.min().strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")],
         "coverage_last_60d": coverage(transits),
+        "source": SOURCES["portwatch"],
+    }
+
+
+def chokepoint_status(
+    transits: pd.DataFrame,
+    places: tuple[str, ...] = STATUS_PLACES,
+    days: int = STATUS_WINDOW_DAYS,
+    reference_year: str = "2025",
+) -> dict[str, Any]:
+    """Mean daily transit calls over the last ``days`` calendar days versus a reference year.
+
+    A place gets ``status: None`` (name only on the page) when the recent window has a missing
+    day or the reference year has fewer than ``MIN_REFERENCE_DAYS`` reported days.
+    """
+    end = transits["date"].max()
+    calendar = pd.date_range(end - pd.Timedelta(days=days - 1), end, freq="D")
+    rows = []
+    for name in places:
+        series = transits[transits["portname"] == name].set_index("date")["n_total"].sort_index()
+        recent = series.reindex(calendar)
+        reference = series.loc[reference_year] if len(series) else series
+        supported = recent.notna().all() and len(reference) >= MIN_REFERENCE_DAYS
+        status = None
+        if supported:
+            recent_mean, ref_mean = float(recent.mean()), float(reference.mean())
+            status = {
+                "recent_mean": round(recent_mean, 1),
+                "reference_mean": round(ref_mean, 1),
+                "change_pct": round(100.0 * (recent_mean / ref_mean - 1.0)),
+            }
+        rows.append({"chokepoint": name, "status": status})
+    return {
+        "window": [calendar[0].strftime("%Y-%m-%d"), calendar[-1].strftime("%Y-%m-%d")],
+        "reference_year": reference_year,
+        "unit": "mean daily transit calls, all vessel types",
+        "places": rows,
         "source": SOURCES["portwatch"],
     }
 
@@ -311,6 +366,11 @@ def build(
         },
         "hormuz_traffic": hormuz_traffic(transits.data),
         "monitor": monitor_flags(transits.data),
+        "monitor_method": {
+            "baseline_window_days": BASELINE_WINDOW,
+            "baseline_gap_days": BASELINE_GAP,
+        },
+        "chokepoint_status": chokepoint_status(transits.data),
         "facts": {
             "risk_models": len(MODEL_LABELS),
             "tests_passed": int(tests["passed"]),

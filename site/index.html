@@ -14,10 +14,12 @@
   <script src="vendor/gsap/gsap.min.js" defer></script>
   <script src="vendor/gsap/ScrollTrigger.min.js" defer></script>
   <script src="js/motion.js" defer></script>
-  <script src="js/hero.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/story.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+  <div class="scroll-progress" aria-hidden="true"><span></span></div>
 
   <header class="masthead">
     <a class="wordmark" href="#top">Commodity Merchant Digital Twin</a>
@@ -25,33 +27,83 @@
   </header>
 
   <main id="main">
-    <section class="hero" id="top" aria-labelledby="hero-title">
-      <figure class="hero-map">
-        <svg id="route-map" role="img" aria-labelledby="map-title map-desc" preserveAspectRatio="xMidYMid slice">
-          <title id="map-title">Illustrative crude-oil sea lanes</title>
-          <desc id="map-desc">World map of the model's demonstration network: three loading ports, three discharge ports and ten sea lanes. Lanes used in the base-case plan are highlighted. Positions are illustrative, not ship tracking.</desc>
-        </svg>
-        <div class="port-labels" aria-hidden="true"></div>
-      </figure>
-
-      <div class="hero-copy">
-        <h1 id="hero-title">Where the oil can sail decides what it is worth.</h1>
-        <p class="lede">A working model of a crude-oil merchant. It sends cargoes down the most profitable open sea lanes, tests what a closed chokepoint costs, and backtests the risk models that size the book.</p>
-        <div class="actions">
-          <a class="button button-primary" data-app-link href="#app-pending">Launch the app</a>
-          <a class="button button-secondary" data-github-link href="https://github.com/temirlankakzhanov/commodity-twin">GitHub</a>
+    <!-- One map stage for the hero and the closure scene. Pinned and scrubbed with GSAP on wide
+         screens; stacked and static without GSAP, with reduced motion, and on phones. -->
+    <section class="story" id="top" aria-labelledby="hero-title">
+      <div class="story-pin">
+        <div class="stage" data-stage="main">
+          <div class="stage-layer stage-land"><svg class="map-svg" data-map="land" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
+          <div class="stage-layer stage-idle"><svg class="map-svg" data-map="idle" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
+          <div class="stage-layer stage-lanes"><svg class="map-svg" data-map="lanes" role="img" aria-labelledby="map-title map-desc" preserveAspectRatio="xMidYMid slice">
+            <title id="map-title">Illustrative crude-oil sea lanes</title>
+            <desc id="map-desc">World map of the model's demonstration network: three loading ports, three discharge ports and ten sea lanes. Lanes used in the base-case plan are highlighted. Positions are illustrative, not ship tracking. Further down, the map zooms to the Strait of Hormuz for the closure scenario described in the panel.</desc>
+          </svg></div>
+          <div class="stage-layer stage-fleet"><svg class="map-svg" data-map="fleet" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
+          <div class="scrim scrim-hero"></div>
+          <div class="scrim scrim-closure"></div>
+          <div class="stage-labels" aria-hidden="true"></div>
         </div>
-        <p class="app-note" data-app-note hidden>The app link goes live once the Streamlit app is deployed.</p>
-      </div>
 
-      <aside class="map-key" aria-label="Map key">
-        <p class="map-key-title">Illustrative routes</p>
-        <ul class="map-key-list">
-          <li><svg class="key-swatch" viewBox="0 0 28 6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" class="lane-active"/></svg>Lane used in the base-case plan</li>
-          <li><svg class="key-swatch" viewBox="0 0 28 6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" class="lane-idle"/></svg>Lane available, not used</li>
-        </ul>
-        <p class="map-key-note">Demonstration network with assumed volumes and freight. Not live ship tracking. Plan solved on prices as of <time data-prices-asof>the snapshot date</time>.</p>
-      </aside>
+        <div class="hero-copy">
+          <h1 id="hero-title" data-split>Where the oil can sail decides what it is worth.</h1>
+          <p class="lede" data-split>A working model of a crude-oil merchant. It sends cargoes down the most profitable open sea lanes, tests what a closed chokepoint costs, and backtests the risk models that size the book.</p>
+          <div class="actions">
+            <a class="button button-primary" data-app-link href="#app-pending">Launch the app</a>
+            <a class="button button-secondary" data-github-link href="https://github.com/temirlankakzhanov/commodity-twin">GitHub</a>
+          </div>
+          <p class="app-note" data-app-note hidden>The app link goes live once the Streamlit app is deployed.</p>
+        </div>
+
+        <aside class="map-key" aria-label="Map key">
+          <p class="map-key-title">Illustrative routes</p>
+          <ul class="map-key-list">
+            <li><svg class="key-swatch" viewBox="0 0 28 6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" class="lane-active"/></svg>Lane used in the base-case plan</li>
+            <li><svg class="key-swatch" viewBox="0 0 28 6" aria-hidden="true"><line x1="1" y1="3" x2="27" y2="3" class="lane-idle"/></svg>Lane available, not used</li>
+          </ul>
+          <p class="map-key-note">Demonstration network with assumed volumes and freight. Not live ship tracking. Plan solved on prices as of <time data-prices-asof>the snapshot date</time>.</p>
+        </aside>
+
+        <p class="scroll-hint" aria-hidden="true"><span>Scroll</span><svg viewBox="0 0 12 16"><path d="M6 1v13M1.5 9.5 6 14l4.5-4.5"/></svg></p>
+
+        <div class="closure-copy" id="closure">
+          <p class="eyebrow">02 · Stress test</p>
+          <h2 id="closure-title" data-split>What breaks when a chokepoint closes</h2>
+          <p class="closure-lede" data-split>Close the Strait of Hormuz in the model and the optimiser re-plans every cargo on the illustrative network. The map follows the one lane in the base-case plan that runs through it.</p>
+        </div>
+
+        <div class="stage closure-stage" data-stage="closure">
+          <div class="stage-layer stage-land"><svg class="map-svg" data-map="land" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
+          <div class="stage-layer stage-idle"><svg class="map-svg" data-map="idle" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
+          <div class="stage-layer stage-lanes"><svg class="map-svg" data-map="lanes" role="img" aria-labelledby="closure-map-title closure-map-desc" preserveAspectRatio="xMidYMid slice">
+            <title id="closure-map-title">Scenario map: the Strait of Hormuz closed on the illustrative network</title>
+            <desc id="closure-map-desc">The map is zoomed to the Strait of Hormuz. The lane through Hormuz that the base-case plan uses is marked closed in the scenario and its tanker has stopped before the strait. Markers show recent transit calls reported by IMF PortWatch. The scenario results and the traffic figures are written out in the panel.</desc>
+          </svg></div>
+          <div class="stage-layer stage-fleet"><svg class="map-svg" data-map="fleet" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg></div>
+          <div class="scrim scrim-closure"></div>
+          <div class="stage-labels" aria-hidden="true"></div>
+        </div>
+
+        <div class="closure-card" data-closure-card>
+          <div class="card-block">
+            <p class="card-heading">Model scenario: Strait of Hormuz closed</p>
+            <p class="card-tag" data-f="scenario-label">illustrative network, not a forecast</p>
+            <dl class="card-rows">
+              <div><dt>lane</dt><dd><span data-f="closed-lanes">the lane through Hormuz</span> <span class="alert-chip"><svg class="alert-icon" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5"/><path d="M2.6 9.4 9.4 2.6"/></svg>closed (scenario)</span></dd></div>
+              <div><dt>margin per day</dt><dd data-f="margins">loading</dd></div>
+              <div><dt>change per day</dt><dd data-f="delta">loading</dd></div>
+              <div><dt>no open route</dt><dd data-f="stranded">loading</dd></div>
+            </dl>
+            <p class="card-note" data-f="scenario-note">Plan solved on the snapshot prices.</p>
+          </div>
+          <div class="card-block">
+            <p class="card-heading">Observed traffic</p>
+            <p class="card-fact" data-f="portwatch">PortWatch-reported transit calls at Hormuz load with the page data.</p>
+            <p class="card-fact" data-f="monitor"></p>
+            <p class="card-note" data-f="markers"></p>
+            <ul class="visually-hidden" data-f="marker-list"></ul>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 </body>
