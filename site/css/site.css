@@ -193,6 +193,13 @@ html[data-story="pinned"] .closure-stage {
   width: 100%;
   height: 100%;
 }
+/* Stacked layout only: the static closure camera moves each layer with a CSS transform, and an
+   SVG clips to its own box, so the land beyond that box would vanish and leave a hard edge. The
+   stage clips (overflow: hidden), so nothing spills onto the page. The pinned layout keeps the
+   default clipping: painting outside the box costs frames while the camera flies. */
+html:not([data-story="pinned"]) .map-svg {
+  overflow: visible;
+}
 
 .land {
   fill: var(--land);

@@ -1062,6 +1062,53 @@
       }
       setup();
 
+      // Stacked layout (not pinned), with GSAP and no reduced-motion preference: light, once-only
+      // reveals. Start states are set here by JS, never in CSS, and each block plays its reveal
+      // when scrolled to or past (a jump past still plays it), so nothing can stay hidden. The
+      // context reverts on a switch to the pinned layout, and before printing.
+      var revealMM = null;
+      function staticReveal(gsap) {
+        var cardCopy = [".closure-copy .eyebrow", "#closure-title", ".closure-lede", "[data-closure-card]"];
+        var M = window.SITE_MOTION;
+        M.reveal(gsap, cardCopy, { y: 20, opacity: 0, duration: 0.6, stagger: 0.08, ease: "power2.out" }, ".closure-copy", "top 90%");
+        // The closed lane draws itself, then the chokepoint markers appear.
+        var red = closure ? closure.closedRed : null;
+        var markers = closure
+          ? closure.markers.map(function (mk) {
+              return mk.node;
+            })
+          : [];
+        if (red) gsap.set(red, { opacity: 0 });
+        gsap.set(markers, { opacity: 0, y: 6 });
+        M.once(closureRoot, "top 75%", function () {
+            if (red) {
+              gsap.set(red, { opacity: 1 });
+              Array.prototype.forEach.call(red.querySelectorAll("path"), function (path) {
+                window.SITE_MOTION.draw(gsap, path, { duration: 1.2 });
+              });
+            }
+            gsap.to(markers, { opacity: 1, y: 0, duration: 0.4, stagger: 0.12, delay: 0.7 });
+        });
+        if (con && con.staticReveal) con.staticReveal(gsap);
+      }
+      if (hasGsap) {
+        revealMM = window.gsap.matchMedia();
+        revealMM.add({ motion: MOTION_OK, pinned: PINNED_QUERY }, function (context) {
+          if (!context.conditions.motion || context.conditions.pinned) return;
+          // After a switch from the pinned layout the stacked frame is rebuilt a tick later
+          // (renderStatic); add the reveals to this context once it exists.
+          window.setTimeout(function () {
+            context.add(function () {
+              staticReveal(window.gsap);
+            });
+            window.ScrollTrigger.refresh();
+          }, 30);
+        });
+        window.addEventListener("beforeprint", function () {
+          revealMM.revert();
+        });
+      }
+
       // Line breaks and the fitted camera depend on the width: rebuild on width changes. A height
       // change only needs fresh pin lengths (they are in % of the viewport): a debounced refresh.
       // Crossing PINNED_QUERY in either direction is handled by gsap.matchMedia itself.

@@ -37,6 +37,7 @@
     "Cape of Good Hope": "Cape",
   };
   var root = null;
+  var monitorLine = null; // the Monitor traffic path, drawn once by the stacked-layout reveal
   var tabs = [];
   var panels = [];
   var manual = false;
@@ -502,6 +503,7 @@
     var grid = add("g", { class: "mc-grid" });
     var basePath = add("path", { class: "mc-baseline" });
     var trafficPath = add("path", { class: "mc-traffic" });
+    monitorLine = trafficPath;
     var axisY = get("monitor-axis-y");
     var axisX = get("monitor-axis-x");
     var cross = get("monitor-cross");
@@ -540,6 +542,10 @@
     function show(name, animate) {
       var s = data.series[name];
       cur = s;
+      // A switch during the one-time draw ends it: the new line is shown whole.
+      if (window.gsap) window.gsap.killTweensOf(trafficPath);
+      trafficPath.style.strokeDasharray = "";
+      trafficPath.style.strokeDashoffset = "";
       var all = s.ma7.concat(s.baseline).filter(function (v) {
         return v !== null;
       });
@@ -1356,6 +1362,27 @@
         at
       );
       return at + STEPS.length * STEP_UNITS;
+    },
+
+    // Stacked layout: once-only reveals, created inside story.js's matchMedia context (so they
+    // revert with it). Start states are set here by JS only.
+    staticReveal: function (gsap) {
+      if (!root) return;
+      var M = window.SITE_MOTION;
+      M.reveal(gsap, root, { y: 16, opacity: 0, duration: 0.6, ease: "power2.out" }, root, "top 88%");
+      panels.forEach(function (panel) {
+        var items = panel.querySelectorAll(".scenario-chip, .kpi, .lane-list > .lane, .monitor-count, .val-verdict");
+        M.reveal(gsap, items, { y: 8, opacity: 0, duration: 0.4, stagger: 0.03, ease: "power2.out" }, panel, "top 85%");
+      });
+      var chart = root.querySelector(".monitor-chart");
+      if (chart && monitorLine) {
+        M.once(chart, "top 80%", function () {
+          // A hidden panel (phones show one at a time) keeps its line whole.
+          if (chart.offsetParent !== null) M.draw(gsap, monitorLine, { duration: 1.4 });
+        });
+      }
+      var tape = root.querySelector(".val-tape");
+      if (tape) M.reveal(gsap, tape, { opacity: 0, duration: 0.6 }, tape, "top 90%");
     },
 
     // Before the sub-steps (scrolled back up), the console rests on the first one.
