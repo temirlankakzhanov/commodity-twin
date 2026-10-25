@@ -1737,7 +1737,8 @@
     "value": -36.98
    },
    "low_in_model": false,
-   "note": "Negative print shown as reported. The model excludes non-positive prices (log returns are undefined), as documented in the methodology.",
+   "model_value": 18.31,
+   "note": "Negative print shown as reported; the model treats the negative price as missing and carries the previous price (18.31) forward, so the crash shows on the next trading day (log returns are undefined for non-positive prices), as documented in the methodology.",
    "series": [
     [
      "2020-01-02",
@@ -2755,7 +2756,7 @@
   "chokepoints_monitored": 6,
   "risk_models": 5,
   "routes": 10,
-  "tests_passed": 121,
+  "tests_passed": 122,
   "tests_skipped": 1
  },
  "hormuz_closure": {

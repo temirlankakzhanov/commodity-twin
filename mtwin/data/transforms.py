@@ -14,8 +14,9 @@ def clean_prices(prices: pd.DataFrame, *, max_ffill: int = 5, min_rows: int = 25
 
     1. Sort by date and drop duplicate dates (last value wins).
     2. Non-positive prices become missing. WTI printed a negative price on 2020-04-20, and
-       log returns are undefined for such values. The following valid print therefore carries
-       the full multi-day move instead of producing ``NaN``.
+       log returns are undefined for such values. Rule 3 then fills that day with the previous
+       price, so the day stays (with no move) and the following valid print carries the full
+       multi-day move instead of producing ``NaN``.
     3. Forward-fill gaps of at most ``max_ffill`` observations (exchange holidays).
     4. Drop any remaining row that still has a missing value.
 

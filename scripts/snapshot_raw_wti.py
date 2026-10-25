@@ -1,8 +1,8 @@
 """Snapshot the raw (uncleaned) FRED WTI series for 2020, used only by the landing page chart.
 
-The model never reads this file: ``mtwin.data.transforms.clean_prices`` still treats the
-negative print of 2020-04-20 as missing. The landing page shows the raw print next to a note
-that it is excluded from the model by the documented methodology.
+The model never reads this file: ``mtwin.data.transforms.clean_prices`` treats the negative
+print of 2020-04-20 as missing and carries the previous price forward. The landing page shows
+the raw print next to a note that explains this documented handling.
 
 Usage: ``python scripts/snapshot_raw_wti.py`` (network) writes
 ``data/snapshots/site-raw-DCOILWTICO-2020.csv``.

@@ -7,8 +7,10 @@ All formulas use positive-loss conventions. Time is in trading days unless state
 * **Prices** come from FRED daily spot series. Rows are sorted and de-duplicated (last value
   wins). Non-positive prices become missing: WTI printed -36.98 USD/bbl on 2020-04-20 and a log
   return is undefined there. Gaps of up to five observations are forward-filled (holidays);
-  longer gaps drop the row. The first valid print after a missing value therefore carries the
-  whole multi-day move.
+  longer gaps drop the row. The 2020-04-20 row therefore stays in the sample with WTI equal to
+  the previous price (18.31, from 2020-04-17), so WTI shows no move that day and the crash
+  appears on 2020-04-21 as the net two-day move 18.31 -> 8.91. In general, the first valid
+  print after a missing value carries the whole multi-day move.
 * **Log returns** `r_t = ln(P_t / P_{t-1})`.
 * **Book P&L** for signed USD notionals `N_k`: `PnL_t = sum_k N_k * (exp(r_{k,t}) - 1)`.
 

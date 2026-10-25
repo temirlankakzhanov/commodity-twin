@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from mtwin.config import load_settings
+from mtwin.data import DataService
 from mtwin.data.service import LoadResult
 from mtwin.data.transforms import clean_prices
-from mtwin.trading import default_network
+from mtwin.risk.returns import log_returns, pnl_from_exposures
+from mtwin.trading import book_exposures, default_network, optimize_flows
 from mtwin.trading.network import Destination, Network, Origin, Route
 from scripts import build_site_data as site
 from scripts.snapshot_raw_wti import raw_frame
@@ -47,6 +51,8 @@ def test_wti_2020_keeps_the_negative_print_and_reports_model_exclusion():
     assert out["low"] == {"date": "2020-04-20", "value": -36.98}
     assert out["series"][1] == ["2020-04-20", -36.98]
     assert out["low_in_model"] is False
+    # Cleaning carries the previous price (17 Apr, 18.31) forward into 20 Apr.
+    assert out["model_value"] == 18.31 and "previous price" in out["note"]
     assert "DCOILWTICO" in out["source"] and "FRED" in out["source"]
 
 
@@ -56,6 +62,23 @@ def test_committed_raw_wti_snapshot_has_the_negative_print_that_the_model_drops(
     assert float(row.iloc[0]) == -36.98
     cleaned = clean_prices(raw.assign(date=pd.to_datetime(raw["date"])).set_index("date"))
     assert (cleaned["WTI"] > 0).all()
+
+
+def test_committed_snapshot_keeps_20_april_2020_with_the_previous_wti_price(tmp_path):
+    settings = replace(load_settings(), offline=True, cache_dir=tmp_path)
+    prices = DataService(settings).prices()
+    assert prices.source == "snapshot"
+    data = prices.data
+    day = pd.Timestamp("2020-04-20")
+    # The negative print is replaced by the previous price, and the day stays in the sample.
+    assert day in data.index and data.at[day, "WTI"] == 18.31
+    # The crash therefore lands on 21 Apr: the largest loss of the plan-implied book.
+    network = default_network()
+    latest = {name: float(data[name].iloc[-1]) for name in network.benchmarks}
+    plan = optimize_flows(network, latest)
+    exposures = book_exposures(plan, network, latest, site.HEDGE_RATIO)
+    pnl = pnl_from_exposures(exposures, log_returns(data))
+    assert pnl.idxmin() == pd.Timestamp("2020-04-21")
 
 
 def test_raw_frame_does_not_drop_negative_values():

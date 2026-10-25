@@ -101,16 +101,25 @@ def wti_2020(raw: pd.DataFrame, model_prices: pd.DataFrame) -> dict[str, Any]:
     """The raw 2020 WTI path, its minimum, and whether the model keeps that print."""
     series = raw.assign(date=pd.to_datetime(raw["date"])).set_index("date")["WTI"].sort_index()
     low_date = series.idxmin()
-    in_model = low_date in model_prices.index and float(model_prices.at[low_date, "WTI"]) == float(
-        series[low_date]
+    model_value = (
+        float(model_prices.at[low_date, "WTI"]) if low_date in model_prices.index else None
     )
+    in_model = model_value is not None and model_value == float(series[low_date])
+    if model_value is None:
+        handling = "the model has no row for that day"
+    else:
+        handling = (
+            f"the model treats the negative price as missing and carries the previous price "
+            f"({model_value:.2f}) forward, so the crash shows on the next trading day"
+        )
     return {
         "series": points(series),
         "low": {"date": low_date.strftime("%Y-%m-%d"), "value": round(float(series.min()), 2)},
         "low_in_model": bool(in_model),
+        "model_value": None if model_value is None else round(model_value, 2),
         "source": f"{SOURCES['fred']} (series DCOILWTICO, raw)",
-        "note": "Negative print shown as reported. The model excludes non-positive prices "
-        "(log returns are undefined), as documented in the methodology.",
+        "note": f"Negative print shown as reported; {handling} (log returns are undefined for "
+        "non-positive prices), as documented in the methodology.",
     }
 
 
