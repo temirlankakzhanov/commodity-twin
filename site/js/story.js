@@ -35,9 +35,12 @@
     "Panama Canal": "Panama",
   };
   var PINNED_QUERY = "(min-width: 761px) and (prefers-reduced-motion: no-preference)";
-  // Pinned scroll distance of the whole scene, in % of the viewport height. The timeline
-  // below is in its own units and is stretched over this distance, so this is the one knob.
-  var PIN_LENGTH_VH = 230;
+  // The pinned timeline is in its own units; each unit takes VH_PER_UNIT % of the viewport
+  // height of scroll. Hero and closure take STORY_UNITS (230vh); the console adds CONSOLE_IN for
+  // its entrance plus its own sub-steps (SITE_CONSOLE.units).
+  var VH_PER_UNIT = 50;
+  var STORY_UNITS = 4.6;
+  var CONSOLE_IN = 0.7;
   var MARKER_GAP = 8; // px kept clear between neighbouring marker labels
   var LANE_CLEARANCE = 6; // px kept clear between a label and an active lane
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -693,6 +696,13 @@
       }
     };
 
+    // Hormuz in stage pixels for camera state z (read after measure).
+    self.pointAt = function (z) {
+      if (!m) return null;
+      var cam = cameraAt(z);
+      return [cam.tx + cam.s * m.p0[0], cam.ty + cam.s * m.p0[1]];
+    };
+
     self.tankerScale = function () {
       return m ? (narrow.matches ? 20 : 26) / (HULL_UNITS * m.pxPerUnit * self.cam.s) : 1;
     };
@@ -716,6 +726,7 @@
   function runFleet(stage) {
     var running = false;
     var visible = true;
+    var held = false; // set while the map sits under the console veil
     var elapsed = 0;
     var last = 0;
     function draw() {
@@ -732,7 +743,7 @@
       window.requestAnimationFrame(frame);
     }
     function update() {
-      var go = visible && !document.hidden && !reduceMotion.matches;
+      var go = visible && !held && !document.hidden && !reduceMotion.matches;
       if (go && !running) {
         running = true;
         last = 0;
@@ -749,6 +760,11 @@
     document.addEventListener("visibilitychange", update);
     reduceMotion.addEventListener("change", update);
     update();
+    draw.hold = function (on) {
+      if (on === held) return;
+      held = on;
+      update();
+    };
     return draw;
   }
 
@@ -808,15 +824,40 @@
       var drawFleet = runFleet(main);
       var closure = null;
       var splitNodes = Array.prototype.slice.call(document.querySelectorAll("[data-split]"));
+      var con = window.SITE_CONSOLE && window.SITE_CONSOLE.build(site) ? window.SITE_CONSOLE : null;
+      var consoleNode = document.querySelector(".console");
+      var glow = pin.querySelector(".hormuz-glow");
+      var card = document.querySelector("[data-closure-card]");
 
       function measureMain(pinned) {
         var box = mainRoot.getBoundingClientRect();
+        // A refresh in the console phase finds the card shrunk; measure it at full size.
+        var scale = pinned && window.gsap ? window.gsap.getProperty(card, "scale") : 1;
+        if (scale !== 1) window.gsap.set(card, { scale: 1 });
         main.measure({ hero: heroObstacles(box), closure: pinned ? closureObstacles(box) : [] });
+        if (scale !== 1) window.gsap.set(card, { scale: scale });
+        if (pinned && con) placeConsole();
         drawFleet();
+      }
+
+      // The console entrance converges on Hormuz in the final frame: the glow sits there, and the
+      // card and the console scale about that point. offsetLeft/Top ignore transforms.
+      function placeConsole() {
+        var p = main.pointAt(1);
+        if (!p) return;
+        var x = mainRoot.offsetLeft + p[0];
+        var y = mainRoot.offsetTop + p[1];
+        window.gsap.set(glow, { x: x, y: y });
+        window.gsap.set(card, { transformOrigin: x - card.offsetLeft + "px " + (y - card.offsetTop) + "px" });
+        window.gsap.set(consoleNode, {
+          transformOrigin: x - consoleNode.offsetLeft + "px " + (y - consoleNode.offsetTop) + "px",
+        });
       }
 
       function renderStatic() {
         html.setAttribute("data-story", "static");
+        drawFleet.hold(false);
+        if (con) con.unpin();
         main.state.z = 0;
         main.state.close = 0;
         main.markers.forEach(function (mk) {
@@ -840,7 +881,6 @@
       function pinned(gsap) {
         html.setAttribute("data-story", "pinned");
         splitNodes.forEach(split);
-        var ST = window.ScrollTrigger;
         var heroLines = document.querySelectorAll(".hero-copy .split-inner");
         var heroRest = [".actions", ".app-note", ".map-key"].map(function (s) {
           return document.querySelector(s);
@@ -857,10 +897,36 @@
 
         var stage = mainRoot;
         var moving = false;
+        var consoleMoving = false;
+        var live = null;
+        var mapHidden = false;
+        var T = STORY_UNITS; // the console entrance starts where the closure scene ends
+        var units = STORY_UNITS + (con ? CONSOLE_IN + con.units : 0);
         function setMoving(on) {
           if (on === moving) return;
           moving = on;
           stage.classList.toggle("is-moving", on);
+        }
+        // Console-phase bookkeeping; every write happens only when its state changes.
+        function consolePhase(t) {
+          var near = moving && t > T - 0.2 && t < T + CONSOLE_IN + 0.1;
+          if (near !== consoleMoving) {
+            consoleMoving = near;
+            pin.classList.toggle("is-console-moving", near);
+          }
+          drawFleet.hold(t > T + 0.45);
+          // Once the console covers the frame, the map (lanes, glows, labels, veil) is not drawn.
+          var hide = t >= T + CONSOLE_IN;
+          if (hide !== mapHidden) {
+            mapHidden = hide;
+            stage.style.visibility = hide ? "hidden" : "";
+          }
+          var on = t >= T + 0.55;
+          if (on !== live) {
+            live = on;
+            con.setLive(on);
+          }
+          if (t < T + CONSOLE_IN) con.reset();
         }
 
         var tl = gsap.timeline({
@@ -868,25 +934,29 @@
           onUpdate: function () {
             main.render(false);
             renderNumbers(counter.p);
+            if (con) consolePhase(tl.time());
           },
           scrollTrigger: {
             trigger: story,
             pin: pin,
             start: "top top",
-            end: "+=" + PIN_LENGTH_VH + "%",
+            end: "+=" + Math.round(units * VH_PER_UNIT) + "%",
             scrub: 1,
             onUpdate: function () {
-              setMoving(true);
+              // No layer promotion for the map once the console covers it.
+              setMoving(!con || tl.time() < T + CONSOLE_IN);
             },
             onScrubComplete: function () {
               setMoving(false);
+              if (con) consolePhase(tl.time());
             },
             onRefresh: function () {
               measureMain(true);
             },
           },
         });
-        // Timeline units (4.6 in total) are spread over PIN_LENGTH_VH of scroll.
+        // Timeline units: STORY_UNITS (4.6) for hero and closure, then the console; one unit is
+        // VH_PER_UNIT % of the viewport height of scroll.
         // (1) hero copy leaves, line by line
         tl.fromTo(heroLines, { yPercent: 0, opacity: 1 }, { yPercent: -110, opacity: 0, duration: 0.55, stagger: 0.05, ease: "power2.in" }, 0)
           .fromTo(heroRest, { y: 0, opacity: 1 }, { y: -24, opacity: 0, duration: 0.45, stagger: 0.05, ease: "power2.in" }, 0.1)
@@ -926,19 +996,27 @@
           .fromTo(counter, { p: 0 }, { p: 1, duration: 0.8, ease: "power1.out" }, 3.4)
           .to({}, { duration: 0.4 }, 4.2);
 
-        var progress = document.querySelector(".scroll-progress span");
-        ST.create({
-          start: 0,
-          end: "max",
-          onUpdate: function (self) {
-            progress.style.transform = "scaleX(" + self.progress.toFixed(4) + ")";
-          },
-        });
+        // (5) the console grows out of Hormuz: the map dims under a veil, the closure copy leaves,
+        // the card shrinks into a glowing dot at the strait and the console scales up from it.
+        // Card, glow and console are separate elements; only opacity and uniform scale change.
+        if (con) {
+          var later = { immediateRender: false };
+          tl.fromTo(".closure-copy", { y: 0, opacity: 1 }, Object.assign({ y: -24, opacity: 0, duration: 0.3, ease: "power2.in" }, later), T)
+            .fromTo(mainRoot.querySelector(".stage-veil"), { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "none" }, T)
+            .fromTo(card, { scale: 1, opacity: 1 }, Object.assign({ scale: 0.04, opacity: 0, duration: 0.4, ease: "power2.in" }, later), T + 0.05)
+            .fromTo(glow, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "back.out(2)" }, T + 0.3)
+            .fromTo(glow, { scale: 1, opacity: 1 }, Object.assign({ scale: 2.4, opacity: 0, duration: 0.25 }, later), T + 0.5)
+            .fromTo(consoleNode, { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3 }, T + 0.4);
+          con.attach(tl, T + CONSOLE_IN);
+          live = null;
+          consolePhase(0);
+        }
 
         return function () {
           setMoving(false);
+          pin.classList.remove("is-console-moving");
+          stage.style.visibility = "";
           splitNodes.forEach(unsplit);
-          progress.style.transform = "";
           // A rebuild (resize, fonts) re-pins straight away; only fall back when the query no
           // longer matches (narrow window, reduced motion switched on).
           window.requestAnimationFrame(function () {

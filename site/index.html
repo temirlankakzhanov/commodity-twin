@@ -16,10 +16,10 @@
   <script src="js/motion.js" defer></script>
   <script src="js/data.js" defer></script>
   <script src="js/story.js" defer></script>
+  <script src="js/console.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="scroll-progress" aria-hidden="true"><span></span></div>
 
   <header class="masthead">
     <a class="wordmark" href="#top">Commodity Merchant Digital Twin</a>
@@ -42,6 +42,7 @@
           <div class="scrim scrim-hero"></div>
           <div class="scrim scrim-closure"></div>
           <div class="stage-labels" aria-hidden="true"></div>
+          <div class="stage-veil" aria-hidden="true"></div>
         </div>
 
         <div class="hero-copy">
@@ -66,7 +67,7 @@
         <p class="scroll-hint" aria-hidden="true"><span>Scroll</span><svg viewBox="0 0 12 16"><path d="M6 1v13M1.5 9.5 6 14l4.5-4.5"/></svg></p>
 
         <div class="closure-copy" id="closure">
-          <p class="eyebrow">02 · Stress test</p>
+          <p class="eyebrow">Stress test</p>
           <h2 id="closure-title" data-split>What breaks when a chokepoint closes</h2>
           <p class="closure-lede" data-split>Close the Strait of Hormuz in the model and the optimiser re-plans every cargo on the illustrative network. The map follows the one lane in the base-case plan that runs through it.</p>
         </div>
@@ -103,6 +104,91 @@
             <ul class="visually-hidden" data-f="marker-list"></ul>
           </div>
         </div>
+        <div class="hormuz-glow" aria-hidden="true"></div>
+
+        <!-- The console: in pinned mode it grows out of Hormuz over the dimmed map and scroll steps
+             through its tabs until the visitor clicks one; otherwise it is a normal block below the
+             closure frame. Every number is filled in from site.json by console.js. -->
+        <section class="console" id="how" aria-labelledby="console-title">
+          <header class="console-head">
+            <h2 class="console-title" id="console-title">Plan the cargoes, watch the straits, test the risk.</h2>
+            <p class="console-caption">Three modules, one book: the plan, the traffic signal and the risk check.</p>
+          </header>
+          <div class="console-tabs" role="tablist" aria-label="Modules">
+            <button type="button" class="console-tab" role="tab" id="tab-optimiser" aria-controls="panel-optimiser" aria-selected="true" data-tab="0">Optimiser</button>
+            <button type="button" class="console-tab" role="tab" id="tab-monitor" aria-controls="panel-monitor" aria-selected="false" tabindex="-1" data-tab="1">Monitor</button>
+            <button type="button" class="console-tab" role="tab" id="tab-validation" aria-controls="panel-validation" aria-selected="false" tabindex="-1" data-tab="2">Validation</button>
+          </div>
+
+          <div class="console-panels">
+            <div class="console-panel is-selected" role="tabpanel" id="panel-optimiser" aria-labelledby="tab-optimiser" tabindex="0" data-panel="0">
+              <div class="panel-head">
+                <h3 class="panel-title">Optimal flows · base case</h3>
+                <p class="panel-meta" data-h="flows-status">solver: loading</p>
+                <div class="info">
+                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-optimiser"><span aria-hidden="true">?</span><span class="visually-hidden">About the optimiser</span></button>
+                  <div class="info-pop" id="info-optimiser" hidden>
+                    <p>A linear programme (HiGHS via SciPy) sets the flow on each sea lane to maximise total margin within supply, demand and chokepoint capacity.</p>
+                    <p>Volumes, freight and capacities are assumptions; prices come from the data snapshot.</p>
+                  </div>
+                </div>
+              </div>
+              <p class="panel-tag" data-h="flows-label">illustrative network</p>
+              <div class="table-scroll">
+                <table class="term-table flows-table">
+                  <caption class="visually-hidden">Base-case plan: chokepoints, flow, unit margin and status of each route</caption>
+                  <thead><tr><th scope="col">Route</th><th scope="col">Chokepoints</th><th scope="col" class="num">kb/d</th><th scope="col" class="num">$/bbl</th><th scope="col">Status</th></tr></thead>
+                  <tbody data-h="flows-rows"></tbody>
+                </table>
+              </div>
+              <dl class="panel-foot" data-h="flows-foot"></dl>
+            </div>
+
+            <div class="console-panel" role="tabpanel" id="panel-monitor" aria-labelledby="tab-monitor" tabindex="0" data-panel="1">
+              <div class="panel-head">
+                <h3 class="panel-title">Chokepoint monitor</h3>
+                <p class="panel-meta" data-h="monitor-date">latest reading</p>
+                <div class="info">
+                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-monitor"><span aria-hidden="true">?</span><span class="visually-hidden">About the monitor</span></button>
+                  <div class="info-pop" id="info-monitor" hidden>
+                    <p data-h="monitor-method">A 7-day average of transit calls is compared with a lagged baseline.</p>
+                    <p>It is an early warning, not a status board: after a long disruption the baseline adapts and the flag clears.</p>
+                  </div>
+                </div>
+              </div>
+              <p class="panel-summary" data-h="monitor-summary">loading</p>
+              <div class="table-scroll">
+                <table class="term-table monitor-table">
+                  <caption class="visually-hidden">Latest monitor reading per chokepoint: 7-day average, baseline, change, z-score and flag</caption>
+                  <thead><tr><th scope="col">Chokepoint</th><th scope="col" class="num">7-day avg</th><th scope="col" class="num">baseline</th><th scope="col" class="num">vs base</th><th scope="col" class="num">z</th><th scope="col">Flag</th></tr></thead>
+                  <tbody data-h="monitor-rows"></tbody>
+                </table>
+              </div>
+              <p class="panel-note" data-h="monitor-note"></p>
+            </div>
+
+            <div class="console-panel" role="tabpanel" id="panel-validation" aria-labelledby="tab-validation" tabindex="0" data-panel="2">
+              <div class="panel-head">
+                <h3 class="panel-title">VaR/ES backtest · verdicts</h3>
+                <p class="panel-meta" data-h="verdicts-meta"></p>
+                <div class="info">
+                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-validation"><span aria-hidden="true">?</span><span class="visually-hidden">About the validation lab</span></button>
+                  <div class="info-pop" id="info-validation" hidden>
+                    <p>Each model forecasts VaR and ES day by day on the plan's own book. Kupiec and conditional-coverage tests, the Basel traffic light and an ES Z2 test decide PASS, REVIEW or FAIL.</p>
+                    <p>Exception: a day with loss above VaR. ES Z2 above zero means ES is too low.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="verdict-layout">
+                <div class="panel-settings">
+                  <dl class="settings-list" data-h="verdicts-settings"></dl>
+                  <p class="panel-note" data-h="verdicts-note"></p>
+                </div>
+                <ul class="verdicts" data-h="verdicts-list"></ul>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
   </main>

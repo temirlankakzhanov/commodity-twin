@@ -102,26 +102,6 @@ a {
   top: 12px;
 }
 
-/* Scroll progress: a thin line, shown only while the scene is pinned and scrubbed. */
-.scroll-progress {
-  display: none;
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: 55;
-  height: 2px;
-  pointer-events: none;
-}
-.scroll-progress span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-}
-html[data-story="pinned"] .scroll-progress {
-  display: block;
-}
-
 /* Masthead ------------------------------------------------------------------ */
 
 .masthead {
@@ -165,11 +145,13 @@ html[data-story="pinned"] .scroll-progress {
   grid-template-columns:
     [full-start] var(--gutter) [left-start] minmax(0, 1fr) [left-end] 32px
     [right-start] minmax(320px, 440px) [right-end] var(--gutter) [full-end];
-  grid-template-rows: [hero-start] 100svh [hero-end closure-start] 100svh [closure-end];
+  grid-template-rows:
+    [hero-start] 100svh [hero-end closure-start] 100svh [closure-end console-start] auto
+    [console-end];
   overflow: hidden;
 }
 html[data-story="pinned"] .story-pin {
-  grid-template-rows: [hero-start closure-start] 100svh [hero-end closure-end];
+  grid-template-rows: [hero-start closure-start console-start] 100svh [hero-end closure-end console-end];
 }
 
 .stage {
@@ -664,8 +646,470 @@ html[data-story="pinned"] .closure-stage {
   }
 }
 
+/* Console ---------------------------------------------------------------------
+   Static (markup default): a block below the closure frame with every panel stacked; on phones
+   one panel at a time behind a segmented control. Pinned: it sits over the dimmed map in the same
+   frame as the closure scene, one panel at a time, and the timeline grows it out of Hormuz. */
+
+/* Map veil for the console phase: a plain dark overlay, only its opacity changes. */
+.stage-veil {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background: rgb(10 10 11 / 0.72);
+}
+.hormuz-glow {
+  display: none;
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  z-index: 4;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px rgb(255 106 31 / 0.22), 0 0 28px 8px rgb(255 106 31 / 0.5);
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-story="pinned"] .stage-veil,
+html[data-story="pinned"] .hormuz-glow {
+  display: block;
+}
+.stage.is-moving .stage-veil,
+.story-pin.is-console-moving .hormuz-glow,
+.story-pin.is-console-moving .console,
+.story-pin.is-console-moving .closure-card {
+  will-change: transform, opacity;
+}
+
+.console {
+  grid-column: left-start / right-end;
+  grid-row: console;
+  z-index: 5;
+  margin: 64px 0 96px;
+  padding: clamp(18px, 2.4vw, 28px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+html[data-story="pinned"] .console {
+  align-self: center;
+  margin: 0;
+  max-height: calc(100svh - 48px);
+  background: rgb(20 20 22 / 0.96);
+  border-color: rgb(255 255 255 / 0.08);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  opacity: 0;
+}
+
+.console-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 32px;
+}
+.console-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 0.9rem + 1.5vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.console-caption {
+  margin: 0;
+  color: var(--muted);
+  font: 400 0.8125rem/1.5 var(--mono);
+}
+
+.console-tabs {
+  display: flex;
+  gap: 4px;
+  margin: clamp(14px, 2vh, 22px) 0 0;
+  padding: 4px;
+  width: max-content;
+  max-width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.console-tab {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 400 0.875rem/1 var(--mono);
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.console-tab:hover {
+  color: var(--text);
+}
+.console-tab[aria-selected="true"] {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* Panels: stacked in one grid cell so the console keeps the height of the tallest one. */
+.console-panels {
+  display: grid;
+  margin-top: 16px;
+}
+.console-panel {
+  position: relative;
+  min-width: 0;
+  padding-top: 4px;
+  font: 400 0.75rem/1.5 var(--mono);
+  color: var(--muted);
+}
+.console-panel + .console-panel {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.console-panel:focus-visible {
+  outline-offset: 6px;
+}
+html[data-story="pinned"] .console-panel {
+  grid-area: 1 / 1;
+  margin: 0;
+  padding-top: 4px;
+  border: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  visibility: hidden;
+  transition: opacity 260ms ease, transform 260ms ease, visibility 0s linear 260ms;
+}
+html[data-story="pinned"] .console-panel.is-selected {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition: opacity 260ms ease 80ms, transform 260ms ease 80ms, visibility 0s;
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-title {
+  margin: 0;
+  color: var(--text);
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.panel-meta {
+  margin: 0 auto 0 0;
+}
+.panel-tag {
+  margin: 8px 0 2px;
+  font-size: 0.6875rem;
+}
+.panel-summary {
+  margin: 10px 0 2px;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.panel-note {
+  margin: 10px 0 0;
+  font-size: 0.6875rem;
+}
+
+/* "?" disclosure: a small popover that never changes the panel's height. */
+.info {
+  position: relative;
+}
+.info-button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: 400 0.75rem/1 var(--mono);
+  cursor: pointer;
+}
+.info-button:hover,
+.info-button[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.info-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 6;
+  width: min(34ch, 78vw);
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.5);
+  color: var(--text);
+  font-size: 0.75rem;
+}
+.info-pop p {
+  margin: 0;
+}
+.info-pop p + p {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+/* Tables: one line per row; on narrow screens they scroll inside the panel only. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.term-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.term-table th {
+  padding: 8px 0 5px;
+  font-weight: 400;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.term-table td {
+  padding: 5px 0;
+  color: var(--text);
+  border-bottom: 1px solid rgb(42 42 46 / 0.55);
+  transition: opacity 260ms ease;
+}
+.term-table th + th,
+.term-table td + td {
+  padding-left: 20px;
+}
+.term-table .num {
+  text-align: right;
+}
+.term-table tr.is-idle td,
+.term-table td.cell-sub {
+  color: var(--muted);
+}
+
+/* Status and flag labels: the word is always there; the mark only repeats it. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tag-mark {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border: 1.5px solid currentColor;
+  border-radius: 1px;
+}
+.tag-active {
+  color: var(--accent);
+}
+.tag-active .tag-mark {
+  background: currentColor;
+}
+.tag-idle {
+  color: var(--muted);
+}
+.tag-icon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.panel-foot,
+.settings-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 14px;
+  margin: 12px 0 0;
+}
+.panel-foot dt,
+.settings-list dt {
+  color: var(--muted);
+}
+.panel-foot dd,
+.settings-list dd {
+  margin: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.panel-foot {
+  transition: opacity 260ms ease;
+}
+
+/* Verdicts: settings and note beside the grid, so no verdict reads as a general claim. */
+.verdict-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 12px;
+}
+.panel-settings {
+  transition: opacity 260ms ease;
+}
+.panel-settings .settings-list {
+  margin: 0;
+}
+.verdicts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.verdict {
+  padding: 10px 12px;
+  background: rgb(10 10 11 / 0.5);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  transition: opacity 260ms ease;
+}
+.verdict-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 7px 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--text);
+}
+.verdict-pass {
+  border-color: var(--accent);
+}
+.verdict-pass .tag-icon {
+  stroke: var(--accent);
+}
+.verdict-review {
+  border-style: dashed;
+  border-color: var(--muted);
+}
+.verdict-fail {
+  border-color: var(--alert);
+}
+.verdict-fail .tag-icon {
+  stroke: var(--alert);
+}
+.verdict-model {
+  margin: 8px 0 4px;
+  color: var(--text);
+}
+.verdict-stats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scroll sub-steps: the console carries data-focus while scroll drives it; everything outside
+   the focus dims (opacity only). Cleared for good once the visitor takes over. */
+.console[data-focus="flows-active"] .flows-table tr.is-idle td,
+.console[data-focus="flows-total"] .flows-table tbody td,
+.console[data-focus="monitor-strait"] .monitor-table tbody tr:not(.is-hormuz) td,
+.console[data-focus="monitor-count"] .monitor-table tbody td,
+.console[data-focus="verdicts-settings"] .verdict {
+  opacity: 0.4;
+}
+
+@media (max-width: 1100px) {
+  .verdict-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+@media (max-width: 900px) {
+  .verdicts {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .console {
+    margin: 48px 0 64px;
+    padding: 16px 14px;
+  }
+  .console-head {
+    display: block;
+  }
+  .console-caption {
+    margin-top: 8px;
+  }
+  .console-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+  }
+  .console-tab {
+    padding: 0 6px;
+    font-size: 0.8125rem;
+  }
+  .console-panel + .console-panel {
+    margin-top: 0;
+    padding-top: 4px;
+    border-top: 0;
+  }
+  /* Title and "?" share the first line; the meta line goes below. */
+  .panel-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+  }
+  .panel-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .panel-head .info {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .panel-meta {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .console-panel:not(.is-selected) {
+    display: none;
+  }
+  .term-table th + th,
+  .term-table td + td {
+    padding-left: 14px;
+  }
+  .verdicts {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .button {
+  .button,
+  .console-tab,
+  .console-panel,
+  .term-table td,
+  .panel-foot,
+  .panel-settings,
+  .verdict {
     transition: none;
   }
 }
