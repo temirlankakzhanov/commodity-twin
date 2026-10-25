@@ -824,7 +824,7 @@
       var drawFleet = runFleet(main);
       var closure = null;
       var splitNodes = Array.prototype.slice.call(document.querySelectorAll("[data-split]"));
-      var con = window.SITE_CONSOLE && window.SITE_CONSOLE.build(site) ? window.SITE_CONSOLE : null;
+      var con = window.SITE_CONSOLE && window.SITE_CONSOLE.build(site, geo) ? window.SITE_CONSOLE : null;
       var consoleNode = document.querySelector(".console");
       var glow = pin.querySelector(".hormuz-glow");
       var card = document.querySelector("[data-closure-card]");

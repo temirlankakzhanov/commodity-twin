@@ -134,14 +134,27 @@
                 </div>
               </div>
               <p class="panel-tag" data-h="flows-label">illustrative network</p>
-              <div class="table-scroll">
-                <table class="term-table flows-table">
-                  <caption class="visually-hidden">Base-case plan: chokepoints, flow, unit margin and status of each route</caption>
-                  <thead><tr><th scope="col">Route</th><th scope="col">Chokepoints</th><th scope="col" class="num">kb/d</th><th scope="col" class="num">$/bbl</th><th scope="col">Status</th></tr></thead>
-                  <tbody data-h="flows-rows"></tbody>
-                </table>
+              <div class="scenario-bar" role="group" aria-label="Scenario: close one chokepoint" data-h="scenario-bar" data-demo="scenario-bar"></div>
+              <div class="flows-layout">
+                <div class="table-scroll" data-demo="flows-table">
+                  <table class="term-table flows-table">
+                    <caption class="visually-hidden">Plan for the selected scenario: chokepoints, flow, unit margin and status of each route</caption>
+                    <thead><tr><th scope="col">Route</th><th scope="col">Chokepoints</th><th scope="col" class="num">kb/d</th><th scope="col" class="num">$/bbl</th><th scope="col">Status</th></tr></thead>
+                    <tbody data-h="flows-rows"></tbody>
+                  </table>
+                </div>
+                <div class="flows-side">
+                  <figure class="route-map" data-demo="route-map">
+                    <svg class="route-map-svg" data-h="route-map" role="img" aria-labelledby="route-map-label"><title id="route-map-label">Illustrative network map</title></svg>
+                    <figcaption class="route-map-key" data-h="route-map-key"></figcaption>
+                  </figure>
+                  <div class="scenario-summary" role="status" aria-live="polite" data-demo="scenario-summary">
+                    <dl class="panel-foot" data-h="flows-foot"></dl>
+                    <p class="scenario-note" data-h="scenario-note"></p>
+                  </div>
+                  <p class="panel-note" data-h="flows-asof"></p>
+                </div>
               </div>
-              <dl class="panel-foot" data-h="flows-foot"></dl>
             </div>
 
             <div class="console-panel" role="tabpanel" id="panel-monitor" aria-labelledby="tab-monitor" tabindex="0" data-panel="1">

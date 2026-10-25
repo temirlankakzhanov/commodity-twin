@@ -11,6 +11,7 @@ import pytest
 from mtwin.data.service import LoadResult
 from mtwin.data.transforms import clean_prices
 from mtwin.trading import default_network
+from mtwin.trading.network import Destination, Network, Origin, Route
 from scripts import build_site_data as site
 from scripts.snapshot_raw_wti import raw_frame
 
@@ -116,6 +117,61 @@ def test_hormuz_closure_strands_volume_and_empties_hormuz_routes():
     assert out["label"] == "illustrative network, not a forecast"
 
 
+def _two_strait_network() -> Network:
+    """One origin, one destination 2 USD/bbl richer, three lanes through straits C1 or C2.
+
+    With insurance and financing set to zero, margin = 2 - freight: A (C1) 1.5, B (C2) 1.0,
+    C (C1) 0.2 USD/bbl.
+    """
+    return Network(
+        origins=(Origin("O", "X", 0.0, 100.0),),
+        destinations=(Destination("D", "X", 2.0, 100.0),),
+        routes=(
+            Route("A", "O", "D", ("C1",), 0.5, 10),
+            Route("B", "O", "D", ("C2",), 1.0, 10),
+            Route("C", "O", "D", ("C1",), 1.8, 10),
+        ),
+        chokepoint_capacity_kbd={"C1": 1000.0, "C2": 1000.0, "C3": 1000.0},
+        base_insurance=0.0,
+        financing_rate=0.0,
+    )
+
+
+def test_scenarios_match_hand_computed_reroute_and_list_removed_lanes():
+    out = site.scenarios(_two_strait_network(), {"X": 50.0})
+    # C3 is on no route, so it gets no scenario.
+    assert out["order"] == ["base", "c1", "c2"]
+    base, c1, c2 = (out["items"][k] for k in out["order"])
+    # Base: all 100 kb/d on A at 1.5 USD/bbl = 150,000 USD/day.
+    assert base["daily_margin_usd"] == 150_000 and base["volume_kbd"] == 100.0
+    assert base["same_as_base"] and base["removed_routes"] == []
+    # C1 closed: A and C are gone, B carries 100 kb/d at 1.0 USD/bbl.
+    assert c1["daily_margin_usd"] == 100_000 and c1["delta_daily_margin_usd"] == -50_000
+    assert c1["stranded_kbd"] == 0.0 and not c1["same_as_base"]
+    assert c1["removed_routes"] == ["A", "C"] and c1["removed_idle_routes"] == ["C"]
+    assert {r["route"]: r["status"] for r in c1["routes"]} == {
+        "A": "IDLE",
+        "B": "ACTIVE",
+        "C": "IDLE",
+    }
+    # C2 closed: the plan never used B, so nothing changes except the lost fallback lane.
+    assert c2["same_as_base"] and c2["delta_daily_margin_usd"] == 0
+    assert c2["removed_idle_routes"] == ["B"] and c2["feasible"]
+
+
+def test_scenarios_cover_every_route_chokepoint_and_agree_with_hormuz_closure():
+    network = default_network()
+    prices = {"BRENT": 80.0, "WTI": 76.0}
+    out = site.scenarios(network, prices)
+    on_routes = {name for r in network.routes for name in r.chokepoints}
+    assert {out["items"][k]["closed"][0] for k in out["order"][1:]} == on_routes
+    hormuz = out["items"][site.scenario_id("Strait of Hormuz")]
+    closure = site.hormuz_closure(network, prices)
+    assert hormuz["daily_margin_usd"] == closure["closed"]["daily_margin_usd"]
+    assert hormuz["stranded_kbd"] == closure["stranded_kbd"]
+    assert out["label"] == "illustrative network, not a forecast"
+
+
 def test_build_refuses_synthetic_inputs():
     prices = pd.DataFrame(
         {"BRENT": [80.0], "WTI": [76.0]}, index=pd.DatetimeIndex(["2024-01-02"], name="date")
@@ -156,6 +212,7 @@ def test_build_end_to_end_on_small_snapshot_like_inputs():
     assert {m["verdict"] for m in payload["validation"]["models"]} <= {"PASS", "REVIEW", "FAIL"}
     assert payload["hormuz_traffic"]["mean_2025"] == 90.0
     assert payload["crises"]["wti_2020"]["low"]["value"] == -36.98
+    assert payload["scenarios"]["order"][0] == "base"
 
 
 def test_chokepoint_status_compares_last_week_with_the_reference_year():

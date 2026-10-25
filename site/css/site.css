@@ -1025,6 +1025,130 @@ html[data-story="pinned"] .console-panel.is-selected {
   font-variant-numeric: tabular-nums;
 }
 
+/* Optimiser scenarios: a toggle row, the table, and beside it a small route map and a live
+   summary. Switching only rewrites text and classes; the fade is opacity/transform only. */
+.scenario-bar {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.scenario-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--muted);
+  font: 400 0.75rem/1 var(--mono);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.scenario-chip:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.scenario-chip .alert-icon {
+  display: none;
+}
+.scenario-chip[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.scenario-chip.is-closure[aria-pressed="true"] {
+  border-color: var(--alert);
+}
+.scenario-chip.is-closure[aria-pressed="true"] .alert-icon {
+  display: block;
+}
+
+.flows-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 330px);
+  gap: 24px;
+  align-items: start;
+}
+.flows-table .alert-chip {
+  margin-left: 8px;
+  font-size: 0.6875rem;
+}
+.flows-table tr.is-closed td:first-child {
+  color: var(--muted);
+}
+
+.route-map {
+  margin: 8px 0 0;
+}
+.route-map-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.rm-land {
+  fill: var(--land);
+  stroke: var(--land-edge);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.rm-lane {
+  fill: none;
+  stroke: var(--lane-idle);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.7;
+}
+.rm-lane.is-active {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: none;
+  opacity: 1;
+}
+.rm-port {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.rm-strait {
+  fill: var(--bg);
+  stroke: var(--muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.rm-strait.is-closed {
+  fill: var(--alert);
+  stroke: var(--alert);
+}
+.route-map-key {
+  margin-top: 6px;
+  font-size: 0.6875rem;
+}
+.route-map-key .alert-chip {
+  font-size: 0.6875rem;
+}
+.scenario-summary .panel-foot {
+  margin-top: 10px;
+}
+.scenario-note {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 0.6875rem;
+}
+.scenario-note:empty {
+  display: none;
+}
+
 /* Scroll sub-steps: the console carries data-focus while scroll drives it; everything outside
    the focus dims (opacity only). Cleared for good once the visitor takes over. */
 .console[data-focus="flows-active"] .flows-table tr.is-idle td,
@@ -1042,6 +1166,10 @@ html[data-story="pinned"] .console-panel.is-selected {
   }
 }
 @media (max-width: 900px) {
+  .flows-layout {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
   .verdicts {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
@@ -1105,6 +1233,7 @@ html[data-story="pinned"] .console-panel.is-selected {
 @media (prefers-reduced-motion: reduce) {
   .button,
   .console-tab,
+  .scenario-chip,
   .console-panel,
   .term-table td,
   .panel-foot,

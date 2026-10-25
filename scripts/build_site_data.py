@@ -291,6 +291,59 @@ def hormuz_closure(network: Network, prices: Mapping[str, float]) -> dict[str, A
     }
 
 
+def scenario_id(chokepoint: str) -> str:
+    """Stable slug for a chokepoint scenario, e.g. ``strait-of-hormuz``."""
+    return re.sub(r"[^a-z0-9]+", "-", chokepoint.lower()).strip("-")
+
+
+def scenarios(network: Network, prices: Mapping[str, float]) -> dict[str, Any]:
+    """Base plan and one full closure per chokepoint that any route passes through.
+
+    Every closure is solved with the same ``optimize_flows`` / ``Scenario`` call as the Hormuz
+    closure. ``same_as_base`` marks closures that leave every route flow unchanged; the routes
+    the closure removes are listed either way, so the shrinking set of fallback lanes is visible.
+    """
+    used = {name for route in network.routes for name in route.chokepoints}
+    names = [name for name in network.chokepoint_capacity_kbd if name in used]
+    base = optimize_flows(network, prices)
+    base_flow = dict(zip(base.flows["route"], base.flows["flow_kbd"], strict=True))
+    base_volume = float(base.flows["flow_kbd"].sum())
+
+    def entry(plan: FlowPlan, closed: str | None) -> dict[str, Any]:
+        volume = float(plan.flows["flow_kbd"].sum())
+        flow = dict(zip(plan.flows["route"], plan.flows["flow_kbd"], strict=True))
+        removed = [r.name for r in network.routes if closed and closed in r.chokepoints]
+        return {
+            "name": closed or "Base case",
+            "closed": [closed] if closed else [],
+            "status": plan.status,
+            "feasible": plan.status == "optimal",
+            "same_as_base": all(abs(flow[k] - base_flow[k]) < 1e-6 for k in base_flow),
+            "daily_margin_usd": round(plan.total_daily_margin_usd),
+            "delta_daily_margin_usd": round(
+                plan.total_daily_margin_usd - base.total_daily_margin_usd
+            ),
+            "volume_kbd": round(volume, 1),
+            "stranded_kbd": round(base_volume - volume, 1),
+            "routes": [
+                {k: row[k] for k in ("route", "flow_kbd", "daily_margin_usd", "status")}
+                for row in plan_rows(plan)
+            ],
+            "removed_routes": removed,
+            "removed_idle_routes": [name for name in removed if base_flow[name] <= 0.0],
+        }
+
+    items = {"base": entry(base, None)}
+    for name in names:
+        closed = optimize_flows(network, prices, Scenario(f"{name} closed", closed=(name,)))
+        items[scenario_id(name)] = entry(closed, name)
+    return {
+        "label": "illustrative network, not a forecast",
+        "order": list(items),
+        "items": items,
+    }
+
+
 def validation(prices: pd.DataFrame, network: Network, plan: FlowPlan) -> dict[str, Any]:
     """Verdicts of all VaR/ES models on the Risk tab's default book and settings."""
     latest = {name: float(prices[name].iloc[-1]) for name in network.benchmarks}
@@ -358,6 +411,7 @@ def build(
             ],
         },
         "hormuz_closure": closure,
+        "scenarios": scenarios(network, latest),
         "validation": validation(prices.data, network, base_plan),
         "crises": {
             "wti_2020": wti_2020(raw_wti, prices.data),

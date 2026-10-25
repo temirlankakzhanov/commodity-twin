@@ -2755,7 +2755,7 @@
   "chokepoints_monitored": 6,
   "risk_models": 5,
   "routes": 10,
-  "tests_passed": 116,
+  "tests_passed": 118,
   "tests_skipped": 1
  },
  "hormuz_closure": {
@@ -3315,6 +3315,598 @@
  "prices_latest": {
   "BRENT": 115.22,
   "WTI": 107.89
+ },
+ "scenarios": {
+  "items": {
+   "bab-el-mandeb-strait": {
+    "closed": [
+     "Bab el-Mandeb Strait"
+    ],
+    "daily_margin_usd": 6323980,
+    "delta_daily_margin_usd": 0,
+    "feasible": true,
+    "name": "Bab el-Mandeb Strait",
+    "removed_idle_routes": [
+     "Ras Tanura-Rotterdam via Suez",
+     "CPC-Ningbo via Suez"
+    ],
+    "removed_routes": [
+     "Ras Tanura-Rotterdam via Suez",
+     "CPC-Ningbo via Suez"
+    ],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 157081,
+      "flow_kbd": 100.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 667345,
+      "flow_kbd": 1200.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": true,
+    "status": "optimal",
+    "stranded_kbd": 0.0,
+    "volume_kbd": 2700.0
+   },
+   "base": {
+    "closed": [],
+    "daily_margin_usd": 6323980,
+    "delta_daily_margin_usd": 0,
+    "feasible": true,
+    "name": "Base case",
+    "removed_idle_routes": [],
+    "removed_routes": [],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 157081,
+      "flow_kbd": 100.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 667345,
+      "flow_kbd": 1200.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": true,
+    "status": "optimal",
+    "stranded_kbd": 0.0,
+    "volume_kbd": 2700.0
+   },
+   "cape-of-good-hope": {
+    "closed": [
+     "Cape of Good Hope"
+    ],
+    "daily_margin_usd": 6241568,
+    "delta_daily_margin_usd": -82413,
+    "feasible": true,
+    "name": "Cape of Good Hope",
+    "removed_idle_routes": [
+     "Houston-Sikka via Cape",
+     "Ras Tanura-Rotterdam via Cape"
+    ],
+    "removed_routes": [
+     "Houston-Ningbo via Cape",
+     "Houston-Sikka via Cape",
+     "Ras Tanura-Rotterdam via Cape"
+    ],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 74669,
+      "flow_kbd": 100.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 667345,
+      "flow_kbd": 1200.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": false,
+    "status": "optimal",
+    "stranded_kbd": 0.0,
+    "volume_kbd": 2700.0
+   },
+   "malacca-strait": {
+    "closed": [
+     "Malacca Strait"
+    ],
+    "daily_margin_usd": 6280956,
+    "delta_daily_margin_usd": -43025,
+    "feasible": true,
+    "name": "Malacca Strait",
+    "removed_idle_routes": [
+     "Houston-Ningbo via Panama",
+     "Ras Tanura-Ningbo",
+     "CPC-Ningbo via Suez"
+    ],
+    "removed_routes": [
+     "Houston-Ningbo via Cape",
+     "Houston-Ningbo via Panama",
+     "Ras Tanura-Ningbo",
+     "CPC-Ningbo via Suez"
+    ],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 169669,
+      "flow_kbd": 100.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 611733,
+      "flow_kbd": 1100.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": false,
+    "status": "optimal",
+    "stranded_kbd": 100.0,
+    "volume_kbd": 2600.0
+   },
+   "panama-canal": {
+    "closed": [
+     "Panama Canal"
+    ],
+    "daily_margin_usd": 6323980,
+    "delta_daily_margin_usd": 0,
+    "feasible": true,
+    "name": "Panama Canal",
+    "removed_idle_routes": [
+     "Houston-Ningbo via Panama"
+    ],
+    "removed_routes": [
+     "Houston-Ningbo via Panama"
+    ],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 157081,
+      "flow_kbd": 100.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 667345,
+      "flow_kbd": 1200.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": true,
+    "status": "optimal",
+    "stranded_kbd": 0.0,
+    "volume_kbd": 2700.0
+   },
+   "strait-of-hormuz": {
+    "closed": [
+     "Strait of Hormuz"
+    ],
+    "daily_margin_usd": 5669223,
+    "delta_daily_margin_usd": -654757,
+    "feasible": true,
+    "name": "Strait of Hormuz",
+    "removed_idle_routes": [
+     "Ras Tanura-Ningbo",
+     "Ras Tanura-Rotterdam via Suez",
+     "Ras Tanura-Rotterdam via Cape"
+    ],
+    "removed_routes": [
+     "Ras Tanura-Ningbo",
+     "Ras Tanura-Sikka",
+     "Ras Tanura-Rotterdam via Suez",
+     "Ras Tanura-Rotterdam via Cape"
+    ],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 169669,
+      "flow_kbd": 100.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": false,
+    "status": "optimal",
+    "stranded_kbd": 1200.0,
+    "volume_kbd": 1500.0
+   },
+   "suez-canal": {
+    "closed": [
+     "Suez Canal"
+    ],
+    "daily_margin_usd": 6323980,
+    "delta_daily_margin_usd": 0,
+    "feasible": true,
+    "name": "Suez Canal",
+    "removed_idle_routes": [
+     "Ras Tanura-Rotterdam via Suez",
+     "CPC-Ningbo via Suez"
+    ],
+    "removed_routes": [
+     "Ras Tanura-Rotterdam via Suez",
+     "CPC-Ningbo via Suez"
+    ],
+    "routes": [
+     {
+      "daily_margin_usd": 5499554,
+      "flow_kbd": 1400.0,
+      "route": "Houston-Rotterdam",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 157081,
+      "flow_kbd": 100.0,
+      "route": "Houston-Ningbo via Cape",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Ningbo via Panama",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Houston-Sikka via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Ningbo",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 667345,
+      "flow_kbd": 1200.0,
+      "route": "Ras Tanura-Sikka",
+      "status": "ACTIVE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Suez",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "Ras Tanura-Rotterdam via Cape",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Rotterdam",
+      "status": "IDLE"
+     },
+     {
+      "daily_margin_usd": 0,
+      "flow_kbd": 0.0,
+      "route": "CPC-Ningbo via Suez",
+      "status": "IDLE"
+     }
+    ],
+    "same_as_base": true,
+    "status": "optimal",
+    "stranded_kbd": 0.0,
+    "volume_kbd": 2700.0
+   }
+  },
+  "label": "illustrative network, not a forecast",
+  "order": [
+   "base",
+   "strait-of-hormuz",
+   "bab-el-mandeb-strait",
+   "suez-canal",
+   "malacca-strait",
+   "panama-canal",
+   "cape-of-good-hope"
+  ]
  },
  "sources": {
   "fred": "U.S. Energy Information Administration, retrieved from FRED, Federal Reserve Bank of St. Louis",

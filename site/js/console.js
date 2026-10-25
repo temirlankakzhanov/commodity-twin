@@ -1,6 +1,6 @@
 // The console: three tabbed panels filled from site.json.
 //
-// story.js owns the pinned scene. It calls SITE_CONSOLE.build(site) once, then, in pinned mode,
+// story.js owns the pinned scene. It calls SITE_CONSOLE.build(site, geo) once, then, in pinned mode,
 // SITE_CONSOLE.attach(timeline, at) to add the scroll sub-steps after the transition. Each
 // sub-step is a timeline label ("console:<id>") with a focus state, so later demos can hook onto
 // the same points. Scroll picks the tab and sub-step until the visitor uses a tab; from then on
@@ -28,6 +28,14 @@
   ];
   var STEP_UNITS = 0.65; // timeline units per sub-step (story.js: 1 unit = 50vh)
 
+  var SHORT = {
+    "Strait of Hormuz": "Hormuz",
+    "Bab el-Mandeb Strait": "Bab el-Mandeb",
+    "Suez Canal": "Suez",
+    "Malacca Strait": "Malacca",
+    "Panama Canal": "Panama",
+    "Cape of Good Hope": "Cape",
+  };
   var root = null;
   var tabs = [];
   var panels = [];
@@ -81,39 +89,235 @@
     });
   }
 
+  function alertChip(text) {
+    var chip = make("span", "alert-chip");
+    chip.appendChild(icon(["M2.6 9.4 9.4 2.6"], true, "alert-icon"));
+    chip.appendChild(document.createTextNode(text));
+    return chip;
+  }
+
+  // Gentle fade on content that changed; skipped without GSAP or with reduced motion.
+  function refresh(nodes) {
+    var still =
+      document.documentElement.getAttribute("data-motion") !== "gsap" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (still) return;
+    nodes.forEach(function (node) {
+      if (node.animate) {
+        node.animate(
+          [
+            { opacity: 0.35, transform: "translateY(4px)" },
+            { opacity: 1, transform: "none" },
+          ],
+          { duration: 220, easing: "ease-out" }
+        );
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------ optimiser scenarios
+
+  // The route map: land, lanes, ports and straits from geo.json (the hero map's projection).
+  // The viewBox is fitted once from the lane coordinates; nothing is measured from the layout.
+  function routeMap(svg, geo, names) {
+    var xs = [];
+    var ys = [];
+    names.forEach(function (name) {
+      var nums = geo.routes[name].match(/-?\d+(\.\d+)?/g).map(Number);
+      for (var i = 0; i + 1 < nums.length; i += 2) {
+        xs.push(nums[i]);
+        ys.push(nums[i + 1]);
+      }
+    });
+    var minX = Math.min.apply(null, xs);
+    var maxX = Math.max.apply(null, xs);
+    var minY = Math.min.apply(null, ys);
+    var maxY = Math.max.apply(null, ys);
+    var pad = 0.06 * (maxX - minX);
+    svg.setAttribute(
+      "viewBox",
+      [minX - pad, minY - pad, maxX - minX + 2 * pad, maxY - minY + 2 * pad].map(function (v) {
+        return v.toFixed(1);
+      }).join(" ")
+    );
+    var add = function (tag, attrs) {
+      var node = document.createElementNS(SVG_NS, tag);
+      Object.keys(attrs).forEach(function (k) {
+        node.setAttribute(k, attrs[k]);
+      });
+      svg.appendChild(node);
+      return node;
+    };
+    add("path", { d: geo.land, class: "rm-land" });
+    var lanes = {};
+    names.forEach(function (name) {
+      lanes[name] = add("path", { d: geo.routes[name], class: "rm-lane" });
+    });
+    Object.keys(geo.ports).forEach(function (name) {
+      var xy = geo.ports[name];
+      add("circle", { cx: xy[0], cy: xy[1], r: 3.2, class: "rm-port" });
+    });
+    var straits = {};
+    Object.keys(geo.chokepoints).forEach(function (name) {
+      var xy = geo.chokepoints[name];
+      straits[name] = add("circle", { cx: xy[0], cy: xy[1], r: 3.6, class: "rm-strait" });
+    });
+    return { lanes: lanes, straits: straits };
+  }
+
+  function optimiser(site, geo, get) {
+    var data = site.scenarios;
+    var base = site.hormuz_closure.base; // same plan as data.items.base; carries unit margins
+    var info = {};
+    base.routes.forEach(function (r) {
+      info[r.route] = r;
+    });
+    var routeChokes = {};
+    site.network.routes.forEach(function (r) {
+      routeChokes[r.name] = r.chokepoints;
+    });
+    var names = site.network.routes.map(function (r) {
+      return r.name;
+    });
+
+    get("flows-status").textContent = "solver: " + data.items.base.status;
+    get("flows-label").textContent = site.network.label + ".";
+    get("flows-asof").textContent = data.label + ". Prices as of " + formatDate(site.as_of.prices) + ".";
+
+    // Rows are built once; a scenario only rewrites cell text and classes.
+    var body = get("flows-rows");
+    body.textContent = "";
+    var cells = {};
+    names.forEach(function (name) {
+      var tr = make("tr");
+      tr.appendChild(make("td", "", name.replace("-", " \u2192 ")));
+      var via = make("td", "cell-sub");
+      var flow = make("td", "num");
+      tr.appendChild(via);
+      tr.appendChild(flow);
+      tr.appendChild(make("td", "num", fixed(info[name].margin_usd_bbl, 2)));
+      var status = make("td");
+      tr.appendChild(status);
+      body.appendChild(tr);
+      cells[name] = { tr: tr, via: via, flow: flow, status: status };
+    });
+
+    var map = routeMap(get("route-map"), geo, names);
+    var mapTitle = get("route-map").querySelector("title");
+    var key = get("route-map-key");
+    var note = get("scenario-note");
+    var foot = get("flows-foot");
+    var summary = root.querySelector(".scenario-summary");
+
+    function show(id, animate) {
+      var sc = data.items[id];
+      var closed = sc.closed[0] || null;
+      var flows = {};
+      sc.routes.forEach(function (r) {
+        flows[r.route] = r;
+      });
+      names.forEach(function (name) {
+        var c = cells[name];
+        var r = flows[name];
+        var active = r.status === "ACTIVE";
+        var cut = closed !== null && routeChokes[name].indexOf(closed) >= 0;
+        c.tr.className = (active ? "is-active" : "is-idle") + (cut ? " is-closed" : "");
+        c.flow.textContent = int.format(r.flow_kbd);
+        c.via.textContent = routeChokes[name].length
+          ? routeChokes[name]
+              .map(function (n) {
+                return SHORT[n] || n;
+              })
+              .join(" · ")
+          : "none";
+        if (cut) c.via.appendChild(alertChip("closed (scenario)"));
+        c.status.textContent = "";
+        var tag = make("span", "tag " + (active ? "tag-active" : "tag-idle"));
+        tag.appendChild(make("span", "tag-mark"));
+        tag.appendChild(document.createTextNode(r.status));
+        c.status.appendChild(tag);
+        map.lanes[name].setAttribute("class", "rm-lane" + (active ? " is-active" : ""));
+      });
+      Object.keys(map.straits).forEach(function (name) {
+        map.straits[name].setAttribute("class", "rm-strait" + (name === closed ? " is-closed" : ""));
+      });
+      key.textContent = "";
+      if (closed) {
+        key.appendChild(alertChip(closed + ": closed (scenario)"));
+      } else {
+        key.textContent = "All chokepoints open.";
+      }
+      mapTitle.textContent =
+        "Illustrative network map, " +
+        (closed ? closed + " closed (scenario)" : "base case") +
+        ": lanes used by the plan are highlighted.";
+
+      rows(foot, [
+        ["scenario", closed ? closed + " closed" : "Base case"],
+        ["plan margin", int.format(sc.daily_margin_usd) + " USD/day"],
+        ["change vs base", (sc.delta_daily_margin_usd < 0 ? MINUS : sc.delta_daily_margin_usd > 0 ? "+" : "") + int.format(Math.abs(sc.delta_daily_margin_usd)) + " USD/day"],
+        ["no open route", int.format(sc.stranded_kbd) + " kb/d"],
+        ["volume shipped", int.format(sc.volume_kbd) + " kb/d"],
+      ]);
+      var lanes = sc.removed_idle_routes.map(function (n) {
+        return n.replace("-", " \u2192 ") + " (idle)";
+      });
+      var text = "";
+      if (!sc.feasible) {
+        text = "No feasible plan for this scenario (" + sc.status + ").";
+      } else if (closed && sc.same_as_base) {
+        text =
+          "Same as base case: no planned cargo uses this chokepoint. " +
+          (lanes.length
+            ? "Also removes backup lane" + (lanes.length > 1 ? "s" : "") + ": " + lanes.join(", ") + "."
+            : "No backup lane is removed.");
+      } else if (closed && lanes.length) {
+        text = "Also removes idle lane" + (lanes.length > 1 ? "s" : "") + ": " + lanes.join(", ") + ".";
+      }
+      note.textContent = text;
+      if (animate) refresh([body, summary]);
+    }
+
+    var bar = get("scenario-bar");
+    bar.textContent = "";
+    var chips = data.order.map(function (id) {
+      var sc = data.items[id];
+      var chip = make("button", "scenario-chip" + (sc.closed.length ? " is-closure" : ""));
+      chip.type = "button";
+      chip.setAttribute("aria-pressed", id === "base" ? "true" : "false");
+      chip.setAttribute("data-demo", "chip-" + id);
+      chip.setAttribute("data-scenario", id);
+      if (sc.closed.length) {
+        chip.appendChild(icon(["M2.6 9.4 9.4 2.6"], true, "alert-icon"));
+        chip.appendChild(document.createTextNode("Close " + (SHORT[sc.closed[0]] || sc.closed[0])));
+        chip.setAttribute("aria-label", "Close " + sc.closed[0] + " (scenario)");
+      } else {
+        chip.appendChild(document.createTextNode(sc.name));
+      }
+      bar.appendChild(chip);
+      return chip;
+    });
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        if (chip.getAttribute("aria-pressed") === "true") return;
+        chips.forEach(function (c) {
+          c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+        });
+        stopAuto(); // a visitor choosing a scenario takes over the console, without a jump
+        show(chip.getAttribute("data-scenario"), true);
+      });
+    });
+    show("base", false);
+  }
+
   // ------------------------------------------------------------------ content
 
-  function fill(site) {
+  function fill(site, geo) {
     var get = function (key) {
       return root.querySelector('[data-h="' + key + '"]');
     };
 
-    // Optimal flows: the base-case plan, every route.
-    var base = site.hormuz_closure.base;
-    get("flows-status").textContent = "solver: " + base.status;
-    get("flows-label").textContent = site.network.label + ".";
-    var body = get("flows-rows");
-    body.textContent = "";
-    base.routes.forEach(function (r) {
-      var active = r.status === "ACTIVE";
-      var tr = make("tr", active ? "is-active" : "is-idle");
-      tr.appendChild(make("td", "", r.route.replace("-", " → ")));
-      tr.appendChild(make("td", "cell-sub", r.chokepoints === "-" ? "none" : r.chokepoints.replace(/, /g, " · ")));
-      tr.appendChild(make("td", "num", int.format(r.flow_kbd)));
-      tr.appendChild(make("td", "num", fixed(r.margin_usd_bbl, 2)));
-      var status = make("td");
-      var tag = make("span", "tag " + (active ? "tag-active" : "tag-idle"));
-      tag.appendChild(make("span", "tag-mark"));
-      tag.appendChild(document.createTextNode(r.status));
-      status.appendChild(tag);
-      tr.appendChild(status);
-      body.appendChild(tr);
-    });
-    rows(get("flows-foot"), [
-      ["plan margin", int.format(base.daily_margin_usd) + " USD/day"],
-      ["volume shipped", int.format(base.volume_kbd) + " kb/d"],
-      ["prices as of", formatDate(site.as_of.prices)],
-    ]);
+    optimiser(site, geo, get);
 
     // Monitor: the latest reading per chokepoint, flagged or not.
     var method = site.monitor_method;
@@ -238,11 +442,14 @@
     }
   }
 
+  function stopAuto() {
+    if (manual) return;
+    manual = true;
+    root.removeAttribute("data-focus");
+  }
+
   function takeOver(index, focus) {
-    if (!manual) {
-      manual = true;
-      root.removeAttribute("data-focus");
-    }
+    stopAuto();
     select(index, { focus: focus, user: true });
   }
 
@@ -308,14 +515,14 @@
     steps: STEPS,
     units: STEPS.length * STEP_UNITS,
 
-    build: function (site) {
+    build: function (site, geo) {
       root = document.querySelector(".console");
       if (!root) return false;
       tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
       panels = tabs.map(function (tab) {
         return document.getElementById(tab.getAttribute("aria-controls"));
       });
-      fill(site);
+      fill(site, geo);
       wire();
       return true;
     },
