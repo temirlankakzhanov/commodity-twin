@@ -118,27 +118,41 @@
   // ------------------------------------------------------------------ optimiser scenarios
 
   // The route map: land, lanes, ports and straits from geo.json (the hero map's projection).
-  // The viewBox is fitted once from the lane coordinates; nothing is measured from the layout.
-  function routeMap(svg, geo, names) {
-    var xs = [];
+  // The frame spans the world's width plus a margin, so a lane that wraps across the Pacific
+  // (stored as two pieces) shows both ends at the edges, each with an arrowhead and an HTML
+  // "Pacific" label. Everything is placed from coordinates once; nothing reads the layout.
+  function routeMap(svg, geo, names, edges) {
+    var pieces = {};
     var ys = [];
+    var xs = [];
     names.forEach(function (name) {
-      var nums = geo.routes[name].match(/-?\d+(\.\d+)?/g).map(Number);
-      for (var i = 0; i + 1 < nums.length; i += 2) {
-        xs.push(nums[i]);
-        ys.push(nums[i + 1]);
-      }
+      pieces[name] = geo.routes[name]
+        .split("M")
+        .filter(Boolean)
+        .map(function (seg) {
+          var nums = seg.match(/-?\d+(\.\d+)?/g).map(Number);
+          var pts = [];
+          for (var i = 0; i + 1 < nums.length; i += 2) {
+            pts.push([nums[i], nums[i + 1]]);
+            xs.push(nums[i]);
+            ys.push(nums[i + 1]);
+          }
+          return pts;
+        });
     });
-    var minX = Math.min.apply(null, xs);
-    var maxX = Math.max.apply(null, xs);
-    var minY = Math.min.apply(null, ys);
-    var maxY = Math.max.apply(null, ys);
-    var pad = 0.06 * (maxX - minX);
+    var world = geo.viewBox;
+    var minX = Math.min(world[0], Math.min.apply(null, xs)) - 14;
+    var maxX = Math.max(world[0] + world[2], Math.max.apply(null, xs)) + 14;
+    var minY = Math.min.apply(null, ys) - 30;
+    var maxY = Math.max.apply(null, ys) + 30;
+    var vb = [minX, minY, maxX - minX, maxY - minY];
     svg.setAttribute(
       "viewBox",
-      [minX - pad, minY - pad, maxX - minX + 2 * pad, maxY - minY + 2 * pad].map(function (v) {
-        return v.toFixed(1);
-      }).join(" ")
+      vb
+        .map(function (v) {
+          return v.toFixed(1);
+        })
+        .join(" ")
     );
     var add = function (tag, attrs) {
       var node = document.createElementNS(SVG_NS, tag);
@@ -148,10 +162,44 @@
       svg.appendChild(node);
       return node;
     };
+    // Arrowhead at p pointing from q to p.
+    var arrow = function (p, q) {
+      var a = Math.atan2(p[1] - q[1], p[0] - q[0]);
+      var s = 7;
+      var pt = function (ang, r) {
+        return (p[0] + Math.cos(ang) * r).toFixed(1) + " " + (p[1] + Math.sin(ang) * r).toFixed(1);
+      };
+      return add("path", { d: "M" + pt(a, 0) + "L" + pt(a + 2.6, s) + "L" + pt(a - 2.6, s) + "Z", class: "rm-arrow" });
+    };
+    var pct = function (p) {
+      return [((p[0] - vb[0]) / vb[2]) * 100, ((p[1] - vb[1]) / vb[3]) * 100];
+    };
     add("path", { d: geo.land, class: "rm-land" });
     var lanes = {};
     names.forEach(function (name) {
-      lanes[name] = add("path", { d: geo.routes[name], class: "rm-lane" });
+      var segs = pieces[name];
+      var lane = { path: add("path", { d: geo.routes[name], class: "rm-lane" }), arrows: [], edges: [] };
+      for (var i = 0; i + 1 < segs.length; i += 1) {
+        var out = segs[i];
+        var back = segs[i + 1];
+        var end = out[out.length - 1];
+        var start = back[0];
+        lane.arrows.push(arrow(end, out[out.length - 2]));
+        // The re-entering piece: arrowhead a little inside its start, pointing along the lane.
+        lane.arrows.push(arrow(back[1], start));
+        var left = end[0] < start[0] ? end : start;
+        var right = end[0] < start[0] ? start : end;
+        var l = pct(left);
+        var r = pct(right);
+        edges.left.style.left = l[0].toFixed(2) + "%";
+        edges.left.style.top = l[1].toFixed(2) + "%";
+        edges.right.style.left = r[0].toFixed(2) + "%";
+        edges.right.style.top = r[1].toFixed(2) + "%";
+        edges.left.hidden = false;
+        edges.right.hidden = false;
+        lane.edges = [edges.left, edges.right];
+      }
+      lanes[name] = lane;
     });
     Object.keys(geo.ports).forEach(function (name) {
       var xy = geo.ports[name];
@@ -165,13 +213,23 @@
     return { lanes: lanes, straits: straits };
   }
 
+  function laneItem(name, flow, status, via, cut) {
+    var li = make("li", "lane" + (status === "ACTIVE" ? " is-active" : " is-idle") + (cut ? " is-closed" : ""));
+    li.setAttribute("data-route", name);
+    li.appendChild(make("span", "lane-name", name.replace("-", " → ")));
+    li.appendChild(make("span", "lane-flow", int.format(flow) + " kb/d"));
+    var tag = make("span", "lane-status tag " + (status === "ACTIVE" ? "tag-active" : "tag-idle"));
+    tag.appendChild(make("span", "tag-mark"));
+    tag.appendChild(document.createTextNode(status));
+    li.appendChild(tag);
+    var line = make("span", "lane-via", via);
+    if (cut) line.appendChild(alertChip("closed (scenario)"));
+    li.appendChild(line);
+    return li;
+  }
+
   function optimiser(site, geo, get) {
     var data = site.scenarios;
-    var base = site.hormuz_closure.base; // same plan as data.items.base; carries unit margins
-    var info = {};
-    base.routes.forEach(function (r) {
-      info[r.route] = r;
-    });
     var routeChokes = {};
     site.network.routes.forEach(function (r) {
       routeChokes[r.name] = r.chokepoints;
@@ -179,103 +237,143 @@
     var names = site.network.routes.map(function (r) {
       return r.name;
     });
-
-    get("flows-status").textContent = "solver: " + data.items.base.status;
-    get("flows-label").textContent = site.network.label + ".";
-    get("flows-asof").textContent = data.label + ". Prices as of " + formatDate(site.as_of.prices) + ".";
-
-    // Rows are built once; a scenario only rewrites cell text and classes.
-    var body = get("flows-rows");
-    body.textContent = "";
-    var cells = {};
-    names.forEach(function (name) {
-      var tr = make("tr");
-      tr.appendChild(make("td", "", name.replace("-", " \u2192 ")));
-      var via = make("td", "cell-sub");
-      var flow = make("td", "num");
-      tr.appendChild(via);
-      tr.appendChild(flow);
-      tr.appendChild(make("td", "num", fixed(info[name].margin_usd_bbl, 2)));
-      var status = make("td");
-      tr.appendChild(status);
-      body.appendChild(tr);
-      cells[name] = { tr: tr, via: via, flow: flow, status: status };
-    });
-
-    var map = routeMap(get("route-map"), geo, names);
-    var mapTitle = get("route-map").querySelector("title");
-    var key = get("route-map-key");
-    var note = get("scenario-note");
-    var foot = get("flows-foot");
-    var summary = root.querySelector(".scenario-summary");
-
-    function show(id, animate) {
-      var sc = data.items[id];
-      var closed = sc.closed[0] || null;
-      var flows = {};
-      sc.routes.forEach(function (r) {
-        flows[r.route] = r;
-      });
-      names.forEach(function (name) {
-        var c = cells[name];
-        var r = flows[name];
-        var active = r.status === "ACTIVE";
-        var cut = closed !== null && routeChokes[name].indexOf(closed) >= 0;
-        c.tr.className = (active ? "is-active" : "is-idle") + (cut ? " is-closed" : "");
-        c.flow.textContent = int.format(r.flow_kbd);
-        c.via.textContent = routeChokes[name].length
-          ? routeChokes[name]
+    var viaText = function (name) {
+      var list = routeChokes[name];
+      return list.length
+        ? "via " +
+            list
               .map(function (n) {
                 return SHORT[n] || n;
               })
               .join(" · ")
-          : "none";
-        if (cut) c.via.appendChild(alertChip("closed (scenario)"));
-        c.status.textContent = "";
-        var tag = make("span", "tag " + (active ? "tag-active" : "tag-idle"));
-        tag.appendChild(make("span", "tag-mark"));
-        tag.appendChild(document.createTextNode(r.status));
-        c.status.appendChild(tag);
-        map.lanes[name].setAttribute("class", "rm-lane" + (active ? " is-active" : ""));
+        : "no chokepoint";
+    };
+
+    get("flows-label").textContent = site.network.label + ".";
+    get("flows-short").textContent = data.label;
+
+    var edges = { left: get("edge-left"), right: get("edge-right") };
+    edges.left.hidden = true;
+    edges.right.hidden = true;
+    var map = routeMap(get("route-map"), geo, names, edges);
+    var mapTitle = get("route-map").querySelector("title");
+    var key = get("route-map-key");
+    var note = get("scenario-note");
+    var foot = get("flows-foot");
+    var extra = get("flows-extra");
+    var detail = get("scenario-detail");
+    var nameLine = get("scenario-name");
+    var activeList = get("lanes-active");
+    var idleList = get("lanes-idle");
+    var toggle = get("idle-toggle");
+    var summary = root.querySelector(".scenario-summary");
+    var idleCount = 0;
+    var idleCut = 0;
+
+    function toggleText() {
+      var open = toggle.getAttribute("aria-expanded") === "true";
+      toggle.textContent =
+        (open ? "Hide " : "Show ") +
+        idleCount +
+        " idle lane" +
+        (idleCount === 1 ? "" : "s") +
+        (idleCut ? " · " + idleCut + " closed" : "");
+    }
+    // Fade the bottom of the idle box while rows remain below (read on scroll and on change only).
+    function updateFade() {
+      var more = !idleList.hidden && idleList.scrollTop + idleList.clientHeight < idleList.scrollHeight - 2;
+      idleList.classList.toggle("has-more", more);
+    }
+    idleList.addEventListener("scroll", updateFade, { passive: true });
+    toggle.addEventListener("click", function () {
+      var open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      idleList.hidden = !open;
+      toggleText();
+      updateFade();
+    });
+
+    function show(id, animate) {
+      var sc = data.items[id];
+      var closed = sc.closed[0] || null;
+      activeList.textContent = "";
+      idleList.textContent = "";
+      idleCount = 0;
+      idleCut = 0;
+      sc.routes.forEach(function (r) {
+        var cut = closed !== null && routeChokes[r.route].indexOf(closed) >= 0;
+        var item = laneItem(r.route, r.flow_kbd, r.status, viaText(r.route), cut);
+        if (r.status === "ACTIVE") {
+          activeList.appendChild(item);
+        } else {
+          idleList.appendChild(item);
+          idleCount += 1;
+          if (cut) idleCut += 1;
+        }
+        var lane = map.lanes[r.route];
+        var on = r.status === "ACTIVE";
+        lane.path.setAttribute("class", "rm-lane" + (on ? " is-active" : ""));
+        lane.arrows.forEach(function (a) {
+          a.setAttribute("class", "rm-arrow" + (on ? " is-active" : ""));
+        });
+        lane.edges.forEach(function (e) {
+          e.classList.toggle("is-active", on);
+        });
       });
+      toggleText();
+      idleList.scrollTop = 0;
+      updateFade();
       Object.keys(map.straits).forEach(function (name) {
         map.straits[name].setAttribute("class", "rm-strait" + (name === closed ? " is-closed" : ""));
       });
       key.textContent = "";
-      if (closed) {
-        key.appendChild(alertChip(closed + ": closed (scenario)"));
-      } else {
-        key.textContent = "All chokepoints open.";
-      }
+      if (closed) key.appendChild(alertChip(closed + ": closed (scenario)"));
+      else key.textContent = "All chokepoints open.";
       mapTitle.textContent =
         "Illustrative network map, " +
         (closed ? closed + " closed (scenario)" : "base case") +
         ": lanes used by the plan are highlighted.";
 
-      rows(foot, [
-        ["scenario", closed ? closed + " closed" : "Base case"],
-        ["plan margin", int.format(sc.daily_margin_usd) + " USD/day"],
-        ["change vs base", (sc.delta_daily_margin_usd < 0 ? MINUS : sc.delta_daily_margin_usd > 0 ? "+" : "") + int.format(Math.abs(sc.delta_daily_margin_usd)) + " USD/day"],
-        ["no open route", int.format(sc.stranded_kbd) + " kb/d"],
+      nameLine.textContent = (closed ? closed + " closed" : "Base case") + ":";
+      var delta = sc.delta_daily_margin_usd;
+      // One block per KPI (label above its own value); <div> groups are valid inside <dl>.
+      foot.textContent = "";
+      [
+        ["plan margin, USD/day", int.format(sc.daily_margin_usd)],
+        ["change vs base, USD/day", (delta < 0 ? MINUS : delta > 0 ? "+" : "") + int.format(Math.abs(delta))],
+        ["no open route, kb/d", int.format(sc.stranded_kbd)],
+      ].forEach(function (pair) {
+        var block = make("div", "kpi");
+        block.appendChild(make("dt", "", pair[0]));
+        block.appendChild(make("dd", "", pair[1]));
+        foot.appendChild(block);
+      });
+      note.textContent = !sc.feasible
+        ? "No feasible plan for this scenario."
+        : closed && sc.same_as_base
+          ? "Same as base case: no planned cargo uses this chokepoint."
+          : "";
+
+      // Behind the "?": the rest of the numbers and the lanes the closure removes.
+      rows(extra, [
         ["volume shipped", int.format(sc.volume_kbd) + " kb/d"],
+        ["solver", sc.status],
+        ["prices as of", formatDate(site.as_of.prices)],
       ]);
       var lanes = sc.removed_idle_routes.map(function (n) {
-        return n.replace("-", " \u2192 ") + " (idle)";
+        return n.replace("-", " → ") + " (idle)";
       });
-      var text = "";
-      if (!sc.feasible) {
-        text = "No feasible plan for this scenario (" + sc.status + ").";
-      } else if (closed && sc.same_as_base) {
-        text =
-          "Same as base case: no planned cargo uses this chokepoint. " +
-          (lanes.length
-            ? "Also removes backup lane" + (lanes.length > 1 ? "s" : "") + ": " + lanes.join(", ") + "."
-            : "No backup lane is removed.");
-      } else if (closed && lanes.length) {
-        text = "Also removes idle lane" + (lanes.length > 1 ? "s" : "") + ": " + lanes.join(", ") + ".";
-      }
-      note.textContent = text;
-      if (animate) refresh([body, summary]);
+      var plural = lanes.length > 1 ? "s" : "";
+      detail.textContent = !closed
+        ? "Base case: every chokepoint open."
+        : sc.same_as_base
+          ? lanes.length
+            ? "Also removes backup lane" + plural + ": " + lanes.join(", ") + "."
+            : "No backup lane is removed."
+          : lanes.length
+            ? "Also removes idle lane" + plural + ": " + lanes.join(", ") + "."
+            : "";
+      if (animate) refresh([summary, activeList]);
     }
 
     var bar = get("scenario-bar");

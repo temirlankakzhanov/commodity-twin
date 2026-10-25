@@ -123,36 +123,37 @@
           <div class="console-panels">
             <div class="console-panel is-selected" role="tabpanel" id="panel-optimiser" aria-labelledby="tab-optimiser" tabindex="0" data-panel="0">
               <div class="panel-head">
-                <h3 class="panel-title">Optimal flows · base case</h3>
-                <p class="panel-meta" data-h="flows-status">solver: loading</p>
+                <h3 class="panel-title">Optimal flows</h3>
                 <div class="info">
-                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-optimiser"><span aria-hidden="true">?</span><span class="visually-hidden">About the optimiser</span></button>
+                  <button type="button" class="info-button" aria-expanded="false" aria-controls="info-optimiser"><span aria-hidden="true">?</span><span class="visually-hidden">About the optimiser and this scenario</span></button>
                   <div class="info-pop" id="info-optimiser" hidden>
                     <p>A linear programme (HiGHS via SciPy) sets the flow on each sea lane to maximise total margin within supply, demand and chokepoint capacity.</p>
-                    <p>Volumes, freight and capacities are assumptions; prices come from the data snapshot.</p>
+                    <p data-h="flows-label">Volumes, freight and capacities are assumptions.</p>
+                    <dl class="info-list" data-h="flows-extra"></dl>
+                    <p data-h="scenario-detail"></p>
                   </div>
                 </div>
               </div>
-              <p class="panel-tag" data-h="flows-label">illustrative network</p>
               <div class="scenario-bar" role="group" aria-label="Scenario: close one chokepoint" data-h="scenario-bar" data-demo="scenario-bar"></div>
               <div class="flows-layout">
-                <div class="table-scroll" data-demo="flows-table">
-                  <table class="term-table flows-table">
-                    <caption class="visually-hidden">Plan for the selected scenario: chokepoints, flow, unit margin and status of each route</caption>
-                    <thead><tr><th scope="col">Route</th><th scope="col">Chokepoints</th><th scope="col" class="num">kb/d</th><th scope="col" class="num">$/bbl</th><th scope="col">Status</th></tr></thead>
-                    <tbody data-h="flows-rows"></tbody>
-                  </table>
-                </div>
-                <div class="flows-side">
-                  <figure class="route-map" data-demo="route-map">
+                <figure class="route-map" data-demo="route-map">
+                  <div class="route-map-frame">
                     <svg class="route-map-svg" data-h="route-map" role="img" aria-labelledby="route-map-label"><title id="route-map-label">Illustrative network map</title></svg>
-                    <figcaption class="route-map-key" data-h="route-map-key"></figcaption>
-                  </figure>
+                    <span class="rm-edge rm-edge-left" data-h="edge-left" aria-hidden="true">Pacific</span>
+                    <span class="rm-edge rm-edge-right" data-h="edge-right" aria-hidden="true">Pacific</span>
+                  </div>
+                  <figcaption class="route-map-key" data-h="route-map-key"></figcaption>
+                  <p class="route-map-note" data-h="flows-short">illustrative network, not a forecast</p>
+                </figure>
+                <div class="flows-side">
                   <div class="scenario-summary" role="status" aria-live="polite" data-demo="scenario-summary">
-                    <dl class="panel-foot" data-h="flows-foot"></dl>
+                    <p class="visually-hidden" data-h="scenario-name"></p>
+                    <dl class="big-numbers" data-h="flows-foot"></dl>
                     <p class="scenario-note" data-h="scenario-note"></p>
                   </div>
-                  <p class="panel-note" data-h="flows-asof"></p>
+                  <ul class="lane-list" data-h="lanes-active" data-demo="lanes-active" aria-label="Lanes used by the plan"></ul>
+                  <button type="button" class="idle-toggle" aria-expanded="false" aria-controls="lanes-idle" data-h="idle-toggle" data-demo="idle-toggle">Show idle lanes</button>
+                  <ul class="lane-list lane-list-idle" id="lanes-idle" data-h="lanes-idle" aria-label="Idle lanes" tabindex="0" hidden></ul>
                 </div>
               </div>
             </div>

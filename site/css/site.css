@@ -775,6 +775,14 @@ html[data-story="pinned"] .console {
   padding-top: 24px;
   border-top: 1px solid var(--line);
 }
+/* Console controls: one thin ring drawn over the control's own border, never a second ring. */
+.console-tab:focus-visible,
+.scenario-chip:focus-visible,
+.idle-toggle:focus-visible,
+.info-button:focus-visible {
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
 .console-panel:focus-visible {
   outline-offset: 6px;
 }
@@ -812,10 +820,6 @@ html[data-story="pinned"] .console-panel.is-selected {
 }
 .panel-meta {
   margin: 0 auto 0 0;
-}
-.panel-tag {
-  margin: 8px 0 2px;
-  font-size: 0.6875rem;
 }
 .panel-summary {
   margin: 10px 0 2px;
@@ -1072,25 +1076,52 @@ html[data-story="pinned"] .console-panel.is-selected {
 
 .flows-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 330px);
-  gap: 24px;
+  grid-template-columns: minmax(0, 45fr) minmax(0, 55fr);
+  gap: clamp(24px, 3vw, 48px);
   align-items: start;
-}
-.flows-table .alert-chip {
-  margin-left: 8px;
-  font-size: 0.6875rem;
-}
-.flows-table tr.is-closed td:first-child {
-  color: var(--muted);
+  margin-top: 14px;
 }
 
 .route-map {
-  margin: 8px 0 0;
+  margin: 0;
+  padding: clamp(10px, 1.4vw, 18px);
+  background: rgb(10 10 11 / 0.55);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.route-map-frame {
+  position: relative;
 }
 .route-map-svg {
   display: block;
   width: 100%;
   height: auto;
+}
+/* The lane leaves the left end downwards to the right, so that label sits above the end; at the
+   right end the lane runs level, so that label sits below it. */
+.rm-edge {
+  position: absolute;
+  color: var(--muted);
+  font: 400 0.625rem/1 var(--mono);
+  transform: translate(0, calc(-100% - 8px));
+  white-space: nowrap;
+  pointer-events: none;
+}
+.rm-edge-right {
+  transform: translate(-100%, 12px);
+}
+.rm-edge.is-active {
+  color: var(--accent);
+}
+.rm-arrow {
+  fill: var(--lane-idle);
+}
+.rm-arrow.is-active {
+  fill: var(--accent);
+}
+.route-map-note {
+  margin: 4px 0 0;
+  font-size: 0.6875rem;
 }
 .rm-land {
   fill: var(--land);
@@ -1131,19 +1162,138 @@ html[data-story="pinned"] .console-panel.is-selected {
   stroke: var(--alert);
 }
 .route-map-key {
-  margin-top: 6px;
+  margin-top: 10px;
   font-size: 0.6875rem;
 }
 .route-map-key .alert-chip {
   font-size: 0.6875rem;
 }
-.scenario-summary .panel-foot {
-  margin-top: 10px;
+.scenario-summary {
+  transition: opacity 260ms ease;
+}
+.big-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+.kpi {
+  min-width: 0;
+}
+.big-numbers dt {
+  font-size: 0.6875rem;
+}
+.big-numbers dd {
+  margin: 4px 0 0;
+  color: var(--text);
+  font: 400 clamp(1.125rem, 0.8rem + 0.9vw, 1.625rem) / 1.1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 .scenario-note {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--text);
+  font-size: 0.75rem;
+}
+
+/* Lanes: the active ones large; the idle ones behind a disclosure. */
+.lane-list {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+  transition: opacity 260ms ease;
+}
+.lane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 2px 18px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgb(42 42 46 / 0.55);
+}
+.lane-name {
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.lane-flow {
+  color: var(--text);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.lane-via {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
   font-size: 0.6875rem;
+}
+.lane-via .alert-chip {
+  font-size: 0.6875rem;
+}
+/* The expanded idle list scrolls inside its own box, so the console never grows. */
+.lane-list-idle {
+  max-height: 176px;
+  margin-top: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lane-idle) rgb(255 255 255 / 0.04);
+}
+.lane-list-idle::-webkit-scrollbar {
+  width: 6px;
+}
+.lane-list-idle::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 0.04);
+  border-radius: 3px;
+}
+.lane-list-idle::-webkit-scrollbar-thumb {
+  background: var(--lane-idle);
+  border-radius: 3px;
+}
+/* More rows below: the last visible rows fade out until the list is scrolled to its end. */
+.lane-list-idle.has-more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
+}
+.lane-list-idle .lane-name,
+.lane-list-idle .lane-flow {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.idle-toggle {
+  margin-top: 10px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 400 0.75rem/1 var(--mono);
+  cursor: pointer;
+  transition: opacity 260ms ease, color 160ms ease, border-color 160ms ease;
+}
+.idle-toggle:hover,
+.idle-toggle[aria-expanded="true"] {
+  color: var(--text);
+  border-color: var(--muted);
+}
+.info-list {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 8px 0 0;
+}
+.info-list dt {
+  color: var(--muted);
+}
+.info-list dd {
+  margin: 0;
+}
+.info-pop p:empty {
+  display: none;
 }
 .scenario-note:empty {
   display: none;
@@ -1151,8 +1301,9 @@ html[data-story="pinned"] .console-panel.is-selected {
 
 /* Scroll sub-steps: the console carries data-focus while scroll drives it; everything outside
    the focus dims (opacity only). Cleared for good once the visitor takes over. */
-.console[data-focus="flows-active"] .flows-table tr.is-idle td,
-.console[data-focus="flows-total"] .flows-table tbody td,
+.console[data-focus="flows-active"] .scenario-summary,
+.console[data-focus="flows-total"] .lane-list,
+.console[data-focus="flows-total"] .idle-toggle,
 .console[data-focus="monitor-strait"] .monitor-table tbody tr:not(.is-hormuz) td,
 .console[data-focus="monitor-count"] .monitor-table tbody td,
 .console[data-focus="verdicts-settings"] .verdict {
@@ -1168,7 +1319,7 @@ html[data-story="pinned"] .console-panel.is-selected {
 @media (max-width: 900px) {
   .flows-layout {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 18px;
   }
   .verdicts {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -1228,12 +1379,21 @@ html[data-story="pinned"] .console-panel.is-selected {
   .verdicts {
     grid-template-columns: 1fr;
   }
+  .big-numbers {
+    gap: 10px;
+  }
+  .big-numbers dd {
+    font-size: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .button,
   .console-tab,
   .scenario-chip,
+  .scenario-summary,
+  .lane-list,
+  .idle-toggle,
   .console-panel,
   .term-table td,
   .panel-foot,
