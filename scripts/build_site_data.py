@@ -32,6 +32,9 @@ from mtwin.risk.returns import log_returns, pnl_from_exposures
 from mtwin.signals.chokepoints import (
     BASELINE_GAP,
     BASELINE_WINDOW,
+    PCT_THRESHOLD,
+    SHORT_WINDOW,
+    Z_THRESHOLD,
     compute_signals,
     latest_flags,
 )
@@ -53,6 +56,7 @@ STATUS_PLACES = (
     "Malacca Strait",
     "Panama Canal",
 )
+MONITOR_SERIES_DAYS = 400  # covers Hormuz's Oct 2025 flags and the Mar 2026 collapse
 MIN_REFERENCE_DAYS = 330  # a reference year with fewer reported days gives no status
 VALIDATION_CFG = ForecastConfig(alpha=0.99, window=500)  # the Risk tab defaults
 HEDGE_RATIO = 0.0  # the Risk tab default: plan-implied inventory, unhedged
@@ -376,6 +380,74 @@ def monitor_flags(transits: pd.DataFrame) -> list[dict[str, Any]]:
     return json.loads(flags.round(3).to_json(orient="records"))
 
 
+def _runs(mask: pd.Series) -> list[list[int]]:
+    """Index ranges [first, last] of consecutive True values."""
+    runs: list[list[int]] = []
+    start = None
+    values = mask.to_numpy()
+    for i, on in enumerate(values):
+        if on and start is None:
+            start = i
+        if not on and start is not None:
+            runs.append([start, i - 1])
+            start = None
+    if start is not None:
+        runs.append([start, len(values) - 1])
+    return runs
+
+
+def _num(value: float, digits: int = 1) -> float | None:
+    return None if pd.isna(value) else round(float(value), digits)
+
+
+def monitor_series(transits: pd.DataFrame, days: int = MONITOR_SERIES_DAYS) -> dict[str, Any]:
+    """Daily monitor history per chokepoint, plus why the last reading is or is not flagged.
+
+    ``ma7`` and ``baseline`` come straight from ``compute_signals``; ``flagged`` is given as index
+    ranges into the shared date axis. For the last reading, ``spread`` is the baseline window's
+    standard deviation implied by the z-score and ``window_min`` / ``window_max`` bound the lagged
+    7-day averages that the baseline is built from.
+    """
+    signals = compute_signals(transits[transits["portname"].isin(CHOKEPOINTS)])
+    end = signals["date"].max()
+    start = end - pd.Timedelta(days=days - 1)
+    axis = pd.date_range(start, end, freq="D")
+    series: dict[str, Any] = {}
+    for name, group in signals.groupby("chokepoint"):
+        frame = group.set_index("date").reindex(axis)
+        full = group.set_index("date")["ma7"]
+        lagged = full.shift(BASELINE_GAP).iloc[-BASELINE_WINDOW:]
+        last = frame.iloc[-1]
+        z = last["zscore"]
+        series[str(name)] = {
+            "ma7": [_num(v) for v in frame["ma7"]],
+            "baseline": [_num(v) for v in frame["baseline"]],
+            "flagged": _runs(frame["flagged"].fillna(False).astype(bool)),
+            "latest": {
+                "ma7": _num(last["ma7"]),
+                "baseline": _num(last["baseline"]),
+                "pct_change": _num(last["pct_change"], 3),
+                "zscore": _num(z, 2),
+                "flagged": bool(last["flagged"]),
+                "pct_condition": bool(last["pct_change"] < PCT_THRESHOLD),
+                "z_condition": bool(z < Z_THRESHOLD),
+                "spread": _num((last["ma7"] - last["baseline"]) / z) if z else None,
+                "window_min": _num(lagged.min()),
+                "window_max": _num(lagged.max()),
+            },
+        }
+    return {
+        "start": start.strftime("%Y-%m-%d"),
+        "days": days,
+        "pct_threshold": PCT_THRESHOLD,
+        "z_threshold": Z_THRESHOLD,
+        "short_window_days": SHORT_WINDOW,
+        "label": "PortWatch-reported transit calls, 7-day average vs the monitor baseline",
+        "source": SOURCES["portwatch"],
+        "series": series,
+    }
+
+
 def build(
     prices: LoadResult,
     transits: LoadResult,
@@ -420,6 +492,7 @@ def build(
         },
         "hormuz_traffic": hormuz_traffic(transits.data),
         "monitor": monitor_flags(transits.data),
+        "monitor_series": monitor_series(transits.data),
         "monitor_method": {
             "baseline_window_days": BASELINE_WINDOW,
             "baseline_gap_days": BASELINE_GAP,

@@ -172,6 +172,50 @@ def test_scenarios_cover_every_route_chokepoint_and_agree_with_hormuz_closure():
     assert out["label"] == "illustrative network, not a forecast"
 
 
+def test_runs_returns_inclusive_index_ranges():
+    mask = pd.Series([False, True, True, False, True, False, True, True])
+    assert site._runs(mask) == [[1, 2], [4, 4], [6, 7]]
+    assert site._runs(pd.Series([False, False])) == []
+
+
+def _monitor_transits(days: int = 500) -> pd.DataFrame:
+    """Hormuz: a 90/110 weekly zigzag, then 20 calls a day for the last 30 days."""
+    dates = pd.date_range("2024-01-01", periods=days, freq="D")
+    calls = [110.0 if (i // 7) % 2 else 90.0 for i in range(days)]
+    calls[-30:] = [20.0] * 30
+    return pd.DataFrame({"date": dates, "portname": "Strait of Hormuz", "n_total": calls})
+
+
+def test_monitor_series_window_values_and_flag_reason():
+    transits = _monitor_transits()
+    out = site.monitor_series(transits, days=60)
+    # Last day: 2024-01-01 + 499 days = 2025-05-14 (2024 is a leap year); 60 days end there.
+    assert out["days"] == 60 and out["start"] == "2025-03-16"
+    hormuz = out["series"]["Strait of Hormuz"]
+    assert len(hormuz["ma7"]) == len(hormuz["baseline"]) == 60
+    # The last seven raw values are all 20, so the last 7-day average is 20.
+    assert hormuz["ma7"][-1] == 20.0
+    latest = hormuz["latest"]
+    assert latest["pct_condition"] == (latest["pct_change"] < out["pct_threshold"])
+    assert latest["z_condition"] == (latest["zscore"] < out["z_threshold"])
+    assert latest["flagged"] == (latest["pct_condition"] and latest["z_condition"])
+    # A fall from about 100 to 20 against a zigzag baseline is flagged, and the flag shows as a run.
+    assert latest["flagged"] and hormuz["flagged"][-1][1] == 59
+    assert latest["spread"] * latest["zscore"] == pytest.approx(
+        latest["ma7"] - latest["baseline"], abs=0.2
+    )
+
+
+def test_monitor_series_has_no_look_ahead():
+    transits = _monitor_transits()
+    before = site.monitor_series(transits, days=60)["series"]["Strait of Hormuz"]
+    changed = transits.copy()
+    changed.loc[changed.index[-1], "n_total"] = 500.0
+    after = site.monitor_series(changed, days=60)["series"]["Strait of Hormuz"]
+    assert after["ma7"][:-1] == before["ma7"][:-1]
+    assert after["baseline"] == before["baseline"]  # the baseline is lagged by four weeks
+
+
 def test_build_refuses_synthetic_inputs():
     prices = pd.DataFrame(
         {"BRENT": [80.0], "WTI": [76.0]}, index=pd.DatetimeIndex(["2024-01-02"], name="date")
@@ -213,6 +257,7 @@ def test_build_end_to_end_on_small_snapshot_like_inputs():
     assert payload["hormuz_traffic"]["mean_2025"] == 90.0
     assert payload["crises"]["wti_2020"]["low"]["value"] == -36.98
     assert payload["scenarios"]["order"][0] == "base"
+    assert payload["monitor_series"]["days"] == site.MONITOR_SERIES_DAYS
 
 
 def test_chokepoint_status_compares_last_week_with_the_reference_year():

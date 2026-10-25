@@ -138,7 +138,7 @@
               <div class="flows-layout">
                 <figure class="route-map" data-demo="route-map">
                   <div class="route-map-frame">
-                    <svg class="route-map-svg" data-h="route-map" role="img" aria-labelledby="route-map-label"><title id="route-map-label">Illustrative network map</title></svg>
+                    <svg class="route-map-svg" data-h="route-map" role="img" aria-label="Illustrative network map"></svg>
                     <span class="rm-edge rm-edge-left" data-h="edge-left" aria-hidden="true">Pacific</span>
                     <span class="rm-edge rm-edge-right" data-h="edge-right" aria-hidden="true">Pacific</span>
                   </div>
@@ -161,24 +161,50 @@
             <div class="console-panel" role="tabpanel" id="panel-monitor" aria-labelledby="tab-monitor" tabindex="0" data-panel="1">
               <div class="panel-head">
                 <h3 class="panel-title">Chokepoint monitor</h3>
-                <p class="panel-meta" data-h="monitor-date">latest reading</p>
                 <div class="info">
                   <button type="button" class="info-button" aria-expanded="false" aria-controls="info-monitor"><span aria-hidden="true">?</span><span class="visually-hidden">About the monitor</span></button>
                   <div class="info-pop" id="info-monitor" hidden>
                     <p data-h="monitor-method">A 7-day average of transit calls is compared with a lagged baseline.</p>
-                    <p>It is an early warning, not a status board: after a long disruption the baseline adapts and the flag clears.</p>
+                    <p data-h="monitor-rule"></p>
+                    <p data-h="monitor-detail"></p>
+                    <p data-h="monitor-source"></p>
                   </div>
                 </div>
               </div>
-              <p class="panel-summary" data-h="monitor-summary">loading</p>
-              <div class="table-scroll">
-                <table class="term-table monitor-table">
-                  <caption class="visually-hidden">Latest monitor reading per chokepoint: 7-day average, baseline, change, z-score and flag</caption>
-                  <thead><tr><th scope="col">Chokepoint</th><th scope="col" class="num">7-day avg</th><th scope="col" class="num">baseline</th><th scope="col" class="num">vs base</th><th scope="col" class="num">z</th><th scope="col">Flag</th></tr></thead>
-                  <tbody data-h="monitor-rows"></tbody>
-                </table>
+              <div class="scenario-bar" role="group" aria-label="Chokepoint" data-h="monitor-chips" data-demo="monitor-chips"></div>
+              <div class="monitor-layout">
+                <div class="monitor-chart-wrap">
+                  <div class="monitor-toolbar">
+                  <div class="monitor-legend" data-h="monitor-legend" aria-hidden="true">
+                    <span class="legend-item"><span class="legend-line legend-traffic"></span>traffic, 7-day avg</span>
+                    <span class="legend-item"><span class="legend-line legend-baseline"></span>baseline</span>
+                    <span class="legend-item"><svg class="alert-icon" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5"/><path d="M2.6 9.4 9.4 2.6"/></svg><span class="legend-band"></span>flagged days</span>
+                  </div>
+                  <button type="button" class="idle-toggle" aria-expanded="false" aria-controls="monitor-table" data-h="monitor-table-toggle" data-demo="monitor-table-toggle">Show as table</button>
+                  </div>
+                  <div class="monitor-chart" tabindex="0" data-demo="monitor-chart" aria-describedby="monitor-tip">
+                    <svg class="monitor-svg" data-h="monitor-svg" viewBox="0 0 600 240" preserveAspectRatio="none" role="img" aria-label="Transit calls and baseline"></svg>
+                    <div class="monitor-axis-y" data-h="monitor-axis-y" aria-hidden="true"></div>
+                    <div class="monitor-axis-x" data-h="monitor-axis-x" aria-hidden="true"></div>
+                    <div class="monitor-cross" data-h="monitor-cross" data-demo="monitor-crosshair" aria-hidden="true">
+                      <span class="cross-dot cross-traffic"></span>
+                      <span class="cross-dot cross-baseline"></span>
+                    </div>
+                    <div class="monitor-tip" id="monitor-tip" data-h="monitor-tip" role="status" aria-live="polite"></div>
+                  </div>
+                  <div class="table-box" id="monitor-table" data-h="monitor-table" tabindex="0" hidden></div>
+                </div>
+                <div class="monitor-side">
+                  <p class="monitor-count" data-h="monitor-summary" data-demo="monitor-summary">loading</p>
+                  <div class="scenario-summary" role="status" aria-live="polite">
+                    <p class="visually-hidden" data-h="monitor-name"></p>
+                    <dl class="big-numbers" data-h="monitor-kpis"></dl>
+                    <p class="monitor-verdict" data-h="monitor-verdict"></p>
+                    <p class="scenario-note" data-h="monitor-reason" data-demo="monitor-reason"></p>
+                  </div>
+                  <p class="panel-note">A change detector: it flags sudden drops and goes quiet during a sustained closure.</p>
+                </div>
               </div>
-              <p class="panel-note" data-h="monitor-note"></p>
             </div>
 
             <div class="console-panel" role="tabpanel" id="panel-validation" aria-labelledby="tab-validation" tabindex="0" data-panel="2">

@@ -821,11 +821,6 @@ html[data-story="pinned"] .console-panel.is-selected {
 .panel-meta {
   margin: 0 auto 0 0;
 }
-.panel-summary {
-  margin: 10px 0 2px;
-  color: var(--text);
-  font-size: 0.875rem;
-}
 .panel-note {
   margin: 10px 0 0;
   font-size: 0.6875rem;
@@ -1254,7 +1249,8 @@ html[data-story="pinned"] .console-panel.is-selected {
   border-radius: 3px;
 }
 /* More rows below: the last visible rows fade out until the list is scrolled to its end. */
-.lane-list-idle.has-more {
+.lane-list-idle.has-more,
+.table-box.has-more {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent);
 }
@@ -1299,13 +1295,204 @@ html[data-story="pinned"] .console-panel.is-selected {
   display: none;
 }
 
+/* Monitor: one chart (traffic vs baseline on one axis), the verdict and its reason beside it. */
+.monitor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
+  gap: clamp(24px, 3vw, 48px);
+  align-items: start;
+  margin-top: 14px;
+}
+.monitor-chart-wrap,
+.monitor-side {
+  transition: opacity 260ms ease;
+}
+.monitor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-bottom: 8px;
+}
+.monitor-toolbar .idle-toggle {
+  margin: 0 0 0 auto;
+}
+.monitor-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.6875rem;
+}
+.monitor-legend[hidden],
+.monitor-chart[hidden] {
+  display: none;
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-line {
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+}
+.legend-traffic {
+  background: var(--accent);
+}
+.legend-baseline {
+  background: var(--muted);
+}
+.legend-band {
+  width: 12px;
+  height: 10px;
+  background: rgb(229 56 59 / 0.22);
+  border-left: 1px solid rgb(229 56 59 / 0.6);
+}
+.monitor-chart {
+  position: relative;
+  aspect-ratio: 600 / 240;
+  margin: 0 0 22px 34px;
+  outline-offset: 6px;
+}
+.monitor-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mc-grid line {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.mc-bands rect {
+  fill: rgb(229 56 59 / 0.16);
+}
+.mc-traffic,
+.mc-baseline {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.mc-traffic {
+  stroke: var(--accent);
+}
+.mc-baseline {
+  stroke: var(--muted);
+}
+.monitor-axis-y span,
+.monitor-axis-x span {
+  position: absolute;
+  color: var(--muted);
+  font-size: 0.625rem;
+  white-space: nowrap;
+}
+.monitor-axis-y span {
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+}
+.monitor-axis-x span {
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+}
+.monitor-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: rgb(244 244 245 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+}
+.monitor-cross.is-on,
+.monitor-tip.is-on {
+  opacity: 1;
+}
+.cross-dot {
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+.cross-traffic {
+  background: var(--accent);
+}
+.cross-baseline {
+  background: var(--muted);
+}
+.monitor-tip {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--text);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+/* The table takes the chart's place, starting at the chart's left edge (axis labels included);
+   the smaller bottom margin keeps the same total height, so nothing grows. */
+.table-box {
+  aspect-ratio: 600 / 240;
+  margin: 0 0 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lane-idle) rgb(255 255 255 / 0.04);
+}
+.table-box .term-table {
+  width: auto;
+}
+.table-box th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.table-box .term-table th + th,
+.table-box .term-table td + td {
+  padding-left: 24px;
+}
+.table-box .alert-chip {
+  font-size: 0.6875rem;
+}
+.reason-line {
+  display: block;
+}
+.monitor-tip .alert-chip {
+  margin-left: 8px;
+  font-size: 0.6875rem;
+}
+.monitor-count {
+  margin: 0 0 14px;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.monitor-verdict {
+  margin: 12px 0 0;
+}
+
 /* Scroll sub-steps: the console carries data-focus while scroll drives it; everything outside
    the focus dims (opacity only). Cleared for good once the visitor takes over. */
 .console[data-focus="flows-active"] .scenario-summary,
 .console[data-focus="flows-total"] .lane-list,
 .console[data-focus="flows-total"] .idle-toggle,
-.console[data-focus="monitor-strait"] .monitor-table tbody tr:not(.is-hormuz) td,
-.console[data-focus="monitor-count"] .monitor-table tbody td,
+.console[data-focus="monitor-strait"] .monitor-side,
+.console[data-focus="monitor-count"] .monitor-chart-wrap,
 .console[data-focus="verdicts-settings"] .verdict {
   opacity: 0.4;
 }
@@ -1317,7 +1504,8 @@ html[data-story="pinned"] .console-panel.is-selected {
   }
 }
 @media (max-width: 900px) {
-  .flows-layout {
+  .flows-layout,
+  .monitor-layout {
     grid-template-columns: 1fr;
     gap: 18px;
   }
@@ -1394,6 +1582,8 @@ html[data-story="pinned"] .console-panel.is-selected {
   .scenario-summary,
   .lane-list,
   .idle-toggle,
+  .monitor-chart-wrap,
+  .monitor-side,
   .console-panel,
   .term-table td,
   .panel-foot,

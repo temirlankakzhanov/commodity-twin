@@ -256,7 +256,7 @@
     edges.left.hidden = true;
     edges.right.hidden = true;
     var map = routeMap(get("route-map"), geo, names, edges);
-    var mapTitle = get("route-map").querySelector("title");
+    var mapSvg = get("route-map");
     var key = get("route-map-key");
     var note = get("scenario-note");
     var foot = get("flows-foot");
@@ -329,10 +329,12 @@
       key.textContent = "";
       if (closed) key.appendChild(alertChip(closed + ": closed (scenario)"));
       else key.textContent = "All chokepoints open.";
-      mapTitle.textContent =
+      mapSvg.setAttribute(
+        "aria-label",
         "Illustrative network map, " +
-        (closed ? closed + " closed (scenario)" : "base case") +
-        ": lanes used by the plan are highlighted.";
+          (closed ? closed + " closed (scenario)" : "base case") +
+          ": lanes used by the plan are highlighted."
+      );
 
       nameLine.textContent = (closed ? closed + " closed" : "Base case") + ":";
       var delta = sc.delta_daily_margin_usd;
@@ -408,6 +410,352 @@
     show("base", false);
   }
 
+  // ------------------------------------------------------------------ monitor
+
+  function slug(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  function niceMax(v) {
+    var step = Math.pow(10, Math.floor(Math.log10(v)));
+    var m = v / step;
+    var nice = [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10].filter(function (c) {
+      return c >= m;
+    })[0];
+    return nice * step;
+  }
+
+  // Why the last reading is or is not flagged, written from the two real conditions: two short
+  // visible lines, plus the baseline-window detail for the "?" box.
+  var ZSCORE = "z\u2011score"; // non-breaking hyphen
+  function reason(latest, data) {
+    var pct = Math.round(latest.pct_change * 100);
+    var pctText = Math.abs(pct) + "% " + (pct < 0 ? "below" : "above") + " its baseline";
+    var zLimit = fixed(data.z_threshold, 0);
+    var pLimit = fixed(data.pct_threshold * 100, 0) + "%";
+    var z = fixed(latest.zscore, 2);
+    var detail =
+      "In the baseline window the 7\u2011day average ranged from " + latest.window_min + " to " +
+      latest.window_max + " calls/day (spread " + latest.spread + ").";
+    if (latest.flagged) {
+      return { lines: ["Flagged: " + pctText + ", past " + pLimit + ".", "Its " + ZSCORE + " is " + z + ", below " + zLimit + "."], detail: detail };
+    }
+    if (latest.pct_condition) {
+      return {
+        lines: ["Not flagged: " + pctText + " passes the " + pLimit + " test.", "But its " + ZSCORE + " is " + z + ", not below " + zLimit + "."],
+        detail: detail + " Against that spread, the gap reads as normal noise.",
+      };
+    }
+    return {
+      lines: ["Not flagged: " + pctText + ", inside the " + pLimit + " line.", "Its " + ZSCORE + " is " + z + " (flag needs below " + zLimit + ")."],
+      detail: detail,
+    };
+  }
+
+  function monitor(site, get) {
+    var data = site.monitor_series;
+    var method = site.monitor_method;
+    var readings = site.monitor;
+    // Same chip order as the optimiser scenarios; any other chokepoint follows.
+    var order = site.scenarios.order
+      .map(function (id) {
+        return (site.scenarios.items[id].closed || [])[0];
+      })
+      .filter(function (name) {
+        return name && data.series[name];
+      });
+    var names = order.concat(
+      Object.keys(data.series).filter(function (name) {
+        return order.indexOf(name) < 0;
+      })
+    );
+    var n = data.series[names[0]].ma7.length;
+    var start = new Date(data.start + "T00:00:00Z");
+    var dayISO = function (i) {
+      return new Date(start.getTime() + i * 86400000).toISOString().slice(0, 10);
+    };
+    var flagged = readings.filter(function (m) {
+      return m.flagged;
+    });
+    get("monitor-summary").textContent = flagged.length + " of " + readings.length + " flagged today";
+    get("monitor-method").textContent =
+      "IMF PortWatch transit calls at " + names.length + " chokepoints: a " + data.short_window_days +
+      "-day average is compared with a " + method.baseline_window_days + "-day baseline lagged " +
+      method.baseline_gap_days + " days.";
+    get("monitor-rule").textContent =
+      "A reading is flagged when traffic is more than " + Math.abs(data.pct_threshold * 100) +
+      "% below baseline and the " + ZSCORE + " is below " + fixed(data.z_threshold, 0) + ". Last reading " +
+      formatDate(readings[0].date) + ".";
+    get("monitor-source").textContent = "Unit: transit calls per day, all vessel types. Source: " + data.source + ".";
+
+    var svg = get("monitor-svg");
+    var W = 600;
+    var H = 240;
+    var add = function (tag, attrs) {
+      var node = document.createElementNS(SVG_NS, tag);
+      Object.keys(attrs).forEach(function (k) {
+        node.setAttribute(k, attrs[k]);
+      });
+      svg.appendChild(node);
+      return node;
+    };
+    var bands = add("g", { class: "mc-bands" });
+    var grid = add("g", { class: "mc-grid" });
+    var basePath = add("path", { class: "mc-baseline" });
+    var trafficPath = add("path", { class: "mc-traffic" });
+    var axisY = get("monitor-axis-y");
+    var axisX = get("monitor-axis-x");
+    var cross = get("monitor-cross");
+    var tip = get("monitor-tip");
+    var chart = root.querySelector(".monitor-chart");
+    var dotT = cross.querySelector(".cross-traffic");
+    var dotB = cross.querySelector(".cross-baseline");
+
+    // Month ticks along the shared date axis (computed once).
+    axisX.textContent = "";
+    for (var i = 0; i < n; i += 1) {
+      var iso = dayISO(i);
+      if (iso.slice(8) === "01" && Number(iso.slice(5, 7)) % 3 === 1) {
+        var tick = make("span", "", new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" }));
+        tick.style.left = ((i / (n - 1)) * 100).toFixed(2) + "%";
+        axisX.appendChild(tick);
+      }
+    }
+
+    var cur = null;
+    var yMax = 1;
+    var pathFor = function (values) {
+      var d = "";
+      var pen = false;
+      values.forEach(function (v, k) {
+        if (v === null) {
+          pen = false;
+          return;
+        }
+        d += (pen ? "L" : "M") + ((k / (n - 1)) * W).toFixed(1) + " " + (H - (v / yMax) * H).toFixed(1);
+        pen = true;
+      });
+      return d;
+    };
+
+    function show(name, animate) {
+      var s = data.series[name];
+      cur = s;
+      var all = s.ma7.concat(s.baseline).filter(function (v) {
+        return v !== null;
+      });
+      yMax = niceMax(Math.max.apply(null, all) * 1.05);
+      trafficPath.setAttribute("d", pathFor(s.ma7));
+      basePath.setAttribute("d", pathFor(s.baseline));
+      bands.textContent = "";
+      s.flagged.forEach(function (run) {
+        var x0 = (Math.max(0, run[0] - 0.5) / (n - 1)) * W;
+        var x1 = (Math.min(n - 1, run[1] + 0.5) / (n - 1)) * W;
+        var r = document.createElementNS(SVG_NS, "rect");
+        r.setAttribute("x", x0.toFixed(1));
+        r.setAttribute("width", Math.max(1.5, x1 - x0).toFixed(1));
+        r.setAttribute("y", "0");
+        r.setAttribute("height", String(H));
+        bands.appendChild(r);
+      });
+      grid.textContent = "";
+      axisY.textContent = "";
+      for (var g = 0; g <= 4; g += 1) {
+        var v = (yMax / 4) * g;
+        var y = H - (v / yMax) * H;
+        var line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", "0");
+        line.setAttribute("x2", String(W));
+        line.setAttribute("y1", y.toFixed(1));
+        line.setAttribute("y2", y.toFixed(1));
+        grid.appendChild(line);
+        var label = make("span", "", int.format(v));
+        label.style.top = ((y / H) * 100).toFixed(2) + "%";
+        axisY.appendChild(label);
+      }
+      svg.setAttribute(
+        "aria-label",
+        name + ": 7-day average transit calls and the monitor baseline, " + formatDate(data.start) + " to " +
+        formatDate(dayISO(n - 1)) + ". " + s.flagged.length + " flagged period" + (s.flagged.length === 1 ? "" : "s") + ". Values are in the tooltip and in the table view."
+      );
+
+      var L = s.latest;
+      get("monitor-name").textContent = name + ":";
+      var kpis = get("monitor-kpis");
+      kpis.textContent = "";
+      [
+        ["7-day avg, calls/day", fixed(L.ma7, 1)],
+        ["baseline, calls/day", fixed(L.baseline, 1)],
+        ["vs baseline", (L.pct_change > 0 ? "+" : "") + fixed(Math.round(L.pct_change * 100), 0) + "%"],
+      ].forEach(function (pair) {
+        var block = make("div", "kpi");
+        block.appendChild(make("dt", "", pair[0]));
+        block.appendChild(make("dd", "", pair[1]));
+        kpis.appendChild(block);
+      });
+      var verdict = get("monitor-verdict");
+      verdict.textContent = "";
+      if (L.flagged) verdict.appendChild(alertChip("flagged"));
+      else verdict.appendChild(make("span", "tag tag-idle", "no flag today"));
+      var why = reason(L, data);
+      var reasonNode = get("monitor-reason");
+      reasonNode.textContent = "";
+      why.lines.forEach(function (line) {
+        reasonNode.appendChild(make("span", "reason-line", line));
+      });
+      get("monitor-detail").textContent = name + ": " + why.detail;
+
+      // Table view: weekly points ending on the last reading.
+      var box = get("monitor-table");
+      var table = make("table", "term-table");
+      table.appendChild(make("caption", "visually-hidden", name + ": weekly readings"));
+      var head = make("tr");
+      ["week ending", "7-day avg", "baseline", "flag"].forEach(function (h, k) {
+        var th = make("th", k && k < 3 ? "num" : "", h);
+        th.scope = "col";
+        head.appendChild(th);
+      });
+      var thead = make("thead");
+      thead.appendChild(head);
+      table.appendChild(thead);
+      var tbody = make("tbody");
+      var isFlag = function (k) {
+        return s.flagged.some(function (run) {
+          return k >= run[0] && k <= run[1];
+        });
+      };
+      for (var k = n - 1; k >= 0; k -= 7) {
+        var tr = make("tr");
+        tr.appendChild(make("td", "", formatDate(dayISO(k))));
+        tr.appendChild(make("td", "num", s.ma7[k] === null ? "–" : fixed(s.ma7[k], 1)));
+        tr.appendChild(make("td", "num", s.baseline[k] === null ? "–" : fixed(s.baseline[k], 1)));
+        var td = make("td");
+        if (isFlag(k)) td.appendChild(alertChip("flagged"));
+        else td.textContent = "no";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      box.textContent = "";
+      box.appendChild(table);
+      box.scrollTop = 0;
+      tableFade();
+      hideCross();
+      if (animate) refresh([svg, root.querySelector(".monitor-side .scenario-summary")]);
+    }
+
+    // Crosshair: the chart box is read once per hover; moves are transform-only, one per frame.
+    var box = null;
+    var pending = null;
+    var shown = -1;
+    function flaggedAt(k) {
+      return cur.flagged.some(function (run) {
+        return k >= run[0] && k <= run[1];
+      });
+    }
+    function hideCross() {
+      cross.classList.remove("is-on");
+      tip.classList.remove("is-on");
+      shown = -1;
+    }
+    function place(idx) {
+      if (!box || idx === shown) return;
+      shown = idx;
+      var x = (idx / (n - 1)) * box.width;
+      var t = cur.ma7[idx];
+      var b = cur.baseline[idx];
+      cross.style.transform = "translateX(" + x.toFixed(1) + "px)";
+      dotT.style.transform = "translateY(" + (t === null ? -99 : box.height - (t / yMax) * box.height).toFixed(1) + "px)";
+      dotB.style.transform = "translateY(" + (b === null ? -99 : box.height - (b / yMax) * box.height).toFixed(1) + "px)";
+      tip.textContent =
+        formatDate(dayISO(idx)) + " · traffic " + (t === null ? "–" : fixed(t, 1)) + " · baseline " +
+        (b === null ? "–" : fixed(b, 1)) + " calls/day";
+      if (flaggedAt(idx)) tip.appendChild(alertChip("flagged"));
+      var left = x > box.width * 0.6;
+      tip.style.transform = "translateX(" + (left ? x - 8 : x + 8).toFixed(1) + "px) translateX(" + (left ? "-100%" : "0") + ")";
+      cross.classList.add("is-on");
+      tip.classList.add("is-on");
+    }
+    chart.addEventListener("pointerenter", function () {
+      box = chart.getBoundingClientRect();
+    });
+    chart.addEventListener("pointermove", function (event) {
+      if (!box) box = chart.getBoundingClientRect();
+      var rel = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+      var idx = Math.round(rel * (n - 1));
+      if (pending === null) {
+        pending = window.requestAnimationFrame(function () {
+          pending = null;
+          place(idx);
+        });
+      }
+    });
+    chart.addEventListener("pointerleave", function () {
+      box = null;
+      hideCross();
+    });
+    chart.addEventListener("focus", function () {
+      box = chart.getBoundingClientRect();
+      place(n - 1);
+    });
+    chart.addEventListener("blur", hideCross);
+    chart.addEventListener("keydown", function (event) {
+      var step = event.shiftKey ? 7 : 1;
+      var next = null;
+      if (event.key === "ArrowLeft") next = Math.max(0, (shown < 0 ? n - 1 : shown) - step);
+      else if (event.key === "ArrowRight") next = Math.min(n - 1, (shown < 0 ? n - 1 : shown) + step);
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = n - 1;
+      if (next === null) return;
+      event.preventDefault();
+      if (!box) box = chart.getBoundingClientRect();
+      place(next);
+    });
+
+    var toggle = get("monitor-table-toggle");
+    var table = get("monitor-table");
+    // The table takes the chart's place (same box size), so the panel height never changes.
+    var legend = get("monitor-legend");
+    // Same bottom fade as the idle-lanes box while rows remain below.
+    function tableFade() {
+      var more = !table.hidden && table.scrollTop + table.clientHeight < table.scrollHeight - 2;
+      table.classList.toggle("has-more", more);
+    }
+    table.addEventListener("scroll", tableFade, { passive: true });
+    toggle.addEventListener("click", function () {
+      var open = toggle.getAttribute("aria-expanded") !== "true";
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      table.hidden = !open;
+      chart.hidden = open;
+      legend.hidden = open;
+      if (open) hideCross();
+      toggle.textContent = open ? "Show as chart" : "Show as table";
+      tableFade();
+    });
+
+    var bar = get("monitor-chips");
+    bar.textContent = "";
+    var first = names.indexOf("Strait of Hormuz") >= 0 ? "Strait of Hormuz" : names[0];
+    var chips = names.map(function (name) {
+      var chip = make("button", "scenario-chip");
+      chip.type = "button";
+      chip.setAttribute("aria-pressed", name === first ? "true" : "false");
+      chip.setAttribute("data-demo", "monitor-chip-" + slug(name));
+      chip.textContent = SHORT[name] || name;
+      chip.setAttribute("aria-label", name);
+      chip.addEventListener("click", function () {
+        if (chip.getAttribute("aria-pressed") === "true") return;
+        chips.forEach(function (c) {
+          c.setAttribute("aria-pressed", c === chip ? "true" : "false");
+        });
+        stopAuto();
+        show(name, true);
+      });
+      bar.appendChild(chip);
+      return chip;
+    });
+    show(first, false);
+  }
+
   // ------------------------------------------------------------------ content
 
   function fill(site, geo) {
@@ -417,60 +765,7 @@
 
     optimiser(site, geo, get);
 
-    // Monitor: the latest reading per chokepoint, flagged or not.
-    var method = site.monitor_method;
-    var readings = site.monitor;
-    var flagged = readings.filter(function (m) {
-      return m.flagged;
-    });
-    get("monitor-method").textContent =
-      "IMF PortWatch transit calls at " +
-      site.facts.chokepoints_monitored +
-      " chokepoints: a 7-day average is compared with a " +
-      method.baseline_window_days +
-      "-day baseline lagged " +
-      method.baseline_gap_days +
-      " days.";
-    get("monitor-date").textContent = "reading of " + formatDate(readings[0].date) + " · calls/day";
-    get("monitor-summary").textContent = flagged.length + " of " + readings.length + " flagged";
-    var mbody = get("monitor-rows");
-    mbody.textContent = "";
-    readings.forEach(function (m) {
-      var tr = make("tr", m.chokepoint === "Strait of Hormuz" ? "is-hormuz" : "");
-      tr.appendChild(make("td", "", m.chokepoint));
-      tr.appendChild(make("td", "num", m.ma7.toFixed(1)));
-      tr.appendChild(make("td", "num", m.baseline.toFixed(1)));
-      tr.appendChild(make("td", "num", signed(Math.round(m.pct_change * 100), 0) + "%"));
-      tr.appendChild(make("td", "num", signed(m.zscore, 2)));
-      var flag = make("td");
-      if (m.flagged) {
-        var chip = make("span", "alert-chip");
-        chip.appendChild(icon(["M2.6 9.4 9.4 2.6"], true, "alert-icon"));
-        chip.appendChild(document.createTextNode("flagged"));
-        flag.appendChild(chip);
-      } else {
-        flag.appendChild(make("span", "tag tag-idle", "no flag"));
-      }
-      tr.appendChild(flag);
-      mbody.appendChild(tr);
-    });
-    var traffic = site.hormuz_traffic;
-    var hormuz = readings.filter(function (m) {
-      return m.chokepoint === "Strait of Hormuz";
-    })[0];
-    var source = "Unit: " + site.chokepoint_status.unit + ". Source: " + site.sources.portwatch + ".";
-    // Explain the non-flag at Hormuz only when the data show one.
-    get("monitor-note").textContent =
-      hormuz && !hormuz.flagged
-        ? "Hormuz is not flagged: its baseline (" +
-          hormuz.baseline.toFixed(1) +
-          ") has already absorbed most of the drop from the " +
-          traffic.period_2025[0].slice(0, 4) +
-          " average of " +
-          traffic.mean_2025.toFixed(1) +
-          ". " +
-          source
-        : source;
+    monitor(site, get);
 
     // Verdicts, with the settings they depend on right next to them.
     var v = site.validation;
