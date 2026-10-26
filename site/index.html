@@ -18,6 +18,7 @@
   <script src="js/story.js" defer></script>
   <script src="js/console.js" defer></script>
   <script src="js/crises.js" defer></script>
+  <script src="js/about.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -342,6 +343,112 @@
         </ul>
       </div>
     </section>
+
+    <!-- Under the hood: open source, tests, how to run. Numbers come from site.json (about.js). -->
+    <section class="hood" id="hood" aria-labelledby="hood-title">
+      <div class="hood-inner">
+        <header class="hood-head">
+          <p class="eyebrow">Under the hood</p>
+          <h2 id="hood-title">Open source, tested, three commands to run.</h2>
+        </header>
+        <div class="hood-grid">
+          <div class="hood-facts">
+            <p class="hood-count"><span class="visually-hidden" data-a="tests-text"></span><span class="count-num" data-a="tests" aria-hidden="true"></span><span class="count-unit" aria-hidden="true" data-a="tests-unit">tests pass</span></p>
+            <p class="hood-note" data-a="tests-note">Counted from the pytest run that built this page's data.</p>
+            <ul class="hood-modules">
+              <li><strong>Optimiser</strong> sends each cargo down the most profitable open lane (a linear programme on an illustrative network).</li>
+              <li><strong>Monitor</strong> flags sudden drops in IMF PortWatch transit calls against a lagged baseline.</li>
+              <li><strong>Validation</strong> backtests five VaR/ES models with Kupiec, conditional-coverage, Basel and ES tests.</li>
+            </ul>
+            <div class="actions hood-actions">
+              <a class="button button-primary" data-app-link href="#app-pending">Launch the app</a>
+              <a class="button button-secondary" data-github-link href="https://github.com/temirlankakzhanov/commodity-twin" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository (opens in a new tab)">GitHub<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a>
+            </div>
+            <p class="app-note" data-app-note hidden>The app link goes live once the Streamlit app is deployed.</p>
+          </div>
+          <div class="hood-code">
+            <div class="code-head">
+              <span>Quick start</span>
+              <button type="button" class="copy-btn" data-copy="quickstart" aria-label="Copy the quick start commands"><svg class="copy-icon" viewBox="0 0 14 14" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7" rx="1"/><path d="M2.5 9.5v-7h7"/></svg><svg class="check-icon" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5 5.5 10.5 11.5 3.5"/></svg><span class="copy-text">Copy</span></button>
+            </div>
+            <pre class="code-block" id="quickstart"><code><span class="code-line">git clone https://github.com/temirlankakzhanov/commodity-twin.git &amp;&amp; cd commodity-twin</span><span class="code-line">make install</span><span class="code-line">make run</span></code></pre>
+            <p class="hood-note">Then open http://localhost:8501. Python 3.12; <code>make check</code> runs lint and tests.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="route-divider" aria-hidden="true">
+      <svg viewBox="0 0 1200 48" preserveAspectRatio="none"><path class="route-path" d="M0 34 C 180 34 260 12 420 14 S 700 38 860 30 S 1080 10 1200 16"/></svg>
+    </div>
   </main>
+
+  <!-- Limits & sources, and the author. Dates come from site.json (about.js). -->
+  <footer class="site-footer" id="limits" aria-labelledby="limits-title">
+    <div class="footer-inner">
+      <h2 id="limits-title">Limits &amp; sources</h2>
+      <div class="footer-grid">
+        <section class="footer-block" aria-labelledby="limits-h">
+          <h3 id="limits-h">Limits</h3>
+          <ul class="footer-list">
+            <li>The trade network is illustrative: volumes, freight and capacities are assumptions. Scenarios are not a forecast.</li>
+            <li>The VaR/ES backtest is a model test on a plan-implied book, not a trading record.</li>
+            <li>The traffic monitor is a change detector: it flags sudden drops and goes quiet during a sustained closure.</li>
+          </ul>
+          <p class="footer-note" data-a="asof">Data as of the snapshot dates.</p>
+        </section>
+        <section class="footer-block" aria-labelledby="sources-h">
+          <h3 id="sources-h">Sources and licences</h3>
+          <ul class="footer-list">
+            <li><strong>Prices:</strong> U.S. Energy Information Administration, retrieved from FRED, Federal Reserve Bank of St. Louis. Public domain, citation requested.</li>
+            <li><strong>Transits:</strong> UN Global Platform; IMF PortWatch. Used with attribution under the IMF copyright and terms of use.</li>
+            <li><strong>Map:</strong> Made with Natural Earth (public domain).</li>
+            <li><strong>Animation:</strong> GSAP, used under its <a class="ext-link" href="https://gsap.com/standard-license" target="_blank" rel="noopener noreferrer" aria-label="GSAP Standard No Charge licence (opens in a new tab)">Standard No Charge licence<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a>.</li>
+            <li><strong>Fonts:</strong> Inter and JetBrains Mono, SIL Open Font License 1.1.</li>
+          </ul>
+          <p class="footer-note">Code: MIT. Data keep their sources' own terms.</p>
+        </section>
+      </div>
+      <p class="footer-note cite"><span>How to cite:</span> Kakzhanov, T. Commodity Merchant Digital Twin. https://github.com/temirlankakzhanov/commodity-twin</p>
+
+      <nav class="footer-nav" aria-label="Footer">
+        <div class="footer-col">
+          <h3>Project</h3>
+          <ul class="footer-links">
+            <li><a class="ext-link" href="#how" data-jump="console">How it works</a></li>
+            <li><a class="ext-link" href="#crises">What the data recorded</a></li>
+            <li><a class="ext-link" href="#hood">Under the hood</a></li>
+            <li><a class="ext-link" href="#limits">Limits &amp; sources</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Links</h3>
+          <ul class="footer-links">
+            <li><a class="ext-link" href="https://github.com/temirlankakzhanov" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (opens in a new tab)">GitHub<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a></li>
+            <li><a class="ext-link" href="https://github.com/temirlankakzhanov/commodity-twin" target="_blank" rel="noopener noreferrer" aria-label="Project repository on GitHub (opens in a new tab)">Repository<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a></li>
+            <li><a class="ext-link" href="https://github.com/temirlankakzhanov/commodity-twin/issues" target="_blank" rel="noopener noreferrer" aria-label="Report an issue on GitHub (opens in a new tab)">Report an issue<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a></li>
+            <li><a class="ext-link" data-app-link href="#app-pending">Launch the app</a></li>
+          </ul>
+        </div>
+        <div class="footer-col author">
+          <h3>Contact</h3>
+          <p class="author-name">Temirlan Kakzhanov</p>
+          <p class="author-role">Author and maintainer</p>
+          <button type="button" class="copy-btn copy-email" data-copy-text="temirlankakzhanov@gmail.com" aria-label="Copy email address"><svg class="copy-icon" viewBox="0 0 14 14" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7" rx="1"/><path d="M2.5 9.5v-7h7"/></svg><svg class="check-icon" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5 5.5 10.5 11.5 3.5"/></svg><span class="copy-text">Copy email</span></button>
+          <ul class="footer-links">
+            <li><a class="ext-link" href="https://www.linkedin.com/in/temirlan-kakzhanov-450160342/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile (opens in a new tab)">LinkedIn<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a></li>
+            <li><a class="ext-link" href="https://t.me/TK0901" target="_blank" rel="noopener noreferrer" aria-label="Telegram (opens in a new tab)">Telegram<svg class="ext-icon" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9"/></svg></a></li>
+          </ul>
+        </div>
+      </nav>
+
+      <div class="footer-bottom">
+        <p data-a="bottom-line">&copy; 2026 Temirlan Kakzhanov · Code: MIT</p>
+        <p class="footer-privacy">No cookies, no analytics, no third-party trackers.</p>
+        <a class="ext-link" href="#top">Back to top</a>
+      </div>
+      <p class="visually-hidden" role="status" aria-live="polite" data-a="copy-status"></p>
+    </div>
+  </footer>
 </body>
 </html>

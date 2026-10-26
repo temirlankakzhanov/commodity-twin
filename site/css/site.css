@@ -419,7 +419,7 @@ html:not([data-story="pinned"]) .map-svg {
   font-weight: 600;
   font-size: 1rem;
   text-decoration: none;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 .button-primary {
   background: var(--accent);
@@ -1833,6 +1833,315 @@ html:not([data-story="pinned"]) .demo-cursor {
   }
 }
 
+/* Under the hood, the route divider and the footer. ---------------------------------------- */
+.hood,
+.site-footer {
+  position: relative;
+  background: var(--bg);
+}
+.hood {
+  border-top: 1px solid var(--line);
+}
+.hood-inner,
+.footer-inner {
+  padding: clamp(64px, 10vh, 112px) var(--gutter);
+}
+.hood-head h2,
+.site-footer h2 {
+  margin: 0;
+  max-width: 22ch;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 0.9rem + 2.2vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+}
+.hood-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(28px, 4vw, 64px);
+  margin-top: clamp(28px, 5vh, 48px);
+  align-items: start;
+}
+.hood-count {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+}
+.count-num {
+  color: var(--text);
+  font: 400 clamp(2.5rem, 1.6rem + 2.4vw, 4rem) / 1 var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.count-unit {
+  color: var(--text);
+  font-size: 1.0625rem;
+}
+.hood-note {
+  margin: 8px 0 0;
+  color: var(--muted-strong);
+  font: 400 0.75rem/1.5 var(--mono);
+}
+.hood-note code {
+  color: var(--text);
+}
+.hood-modules {
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+.hood-modules li {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.hood-modules strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.hood-actions {
+  margin-top: 24px;
+}
+.hood-code {
+  min-width: 0;
+}
+.code-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px 8px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  color: var(--muted);
+  font: 400 0.75rem/1 var(--mono);
+}
+/* Each command is its own line block and long ones wrap (with a hanging indent after the "$"),
+   so nothing is clipped; the copy button still copies the exact commands. */
+.code-block {
+  margin: 0;
+  padding: 16px 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0 0 6px 6px;
+  color: var(--text);
+  font: 400 0.8125rem/1.7 var(--mono);
+}
+.code-line {
+  position: relative;
+  display: block;
+  padding-left: 2ch;
+  text-indent: -2ch;
+}
+.code-line::before {
+  content: "$ ";
+  color: var(--accent);
+}
+/* Typing: a cover the colour of the block slides off each line (transform only); the text
+   itself is always in the DOM. */
+.type-cover {
+  position: absolute;
+  inset: 0 -2px;
+  background: var(--surface);
+  transform-origin: 100% 50%;
+}
+
+/* Copy buttons: the label switches to "Copied" with a check for a moment. */
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: 400 0.75rem/1 var(--mono);
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.copy-btn:hover {
+  border-color: var(--muted);
+  transform: translateY(-1px);
+}
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.copy-btn .check-icon,
+.copy-btn.is-copied .copy-icon {
+  display: none;
+}
+.copy-btn.is-copied .check-icon {
+  display: block;
+  stroke: var(--accent);
+}
+
+/* Buttons lift a little; text links get an orange underline growing left to right. */
+.button:hover {
+  transform: translateY(-1px);
+}
+.ext-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+.ext-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 220ms ease;
+}
+.ext-link:hover::after,
+.ext-link:focus-visible::after {
+  transform: scaleX(1);
+}
+.ext-icon {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.button .ext-icon {
+  margin-left: 6px;
+}
+
+/* One thin orange route between the last section and the footer; drawn once. */
+.route-divider {
+  padding: 0 var(--gutter);
+  background: var(--bg);
+}
+.route-divider svg {
+  display: block;
+  width: 100%;
+  height: 48px;
+  overflow: visible;
+}
+.route-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.8;
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(28px, 3vw, 48px);
+  margin-top: clamp(24px, 4vh, 40px);
+}
+.footer-block h3 {
+  margin: 0 0 12px;
+  color: var(--text);
+  font: 400 0.75rem/1.4 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.footer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+.footer-list li + li {
+  margin-top: 10px;
+}
+.footer-list strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.footer-note {
+  margin: 16px 0 0;
+  color: var(--muted-strong);
+  font: 400 0.75rem/1.5 var(--mono);
+}
+.footer-note.cite span {
+  color: var(--text);
+}
+.author-name {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+.author-role {
+  margin: 2px 0 14px;
+  color: var(--muted);
+}
+.cite {
+  overflow-wrap: anywhere;
+}
+.footer-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 3vw, 48px);
+  margin-top: clamp(40px, 6vh, 64px);
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.footer-col h3 {
+  margin: 0 0 12px;
+  color: var(--text);
+  font: 400 0.75rem/1.4 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.footer-links {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.footer-col h3 + .footer-links {
+  margin-top: 0;
+}
+.footer-links li + li {
+  margin-top: 8px;
+}
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted-strong);
+  font: 400 0.75rem/1.5 var(--mono);
+}
+.footer-bottom p {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .flows-layout,
   .monitor-layout {
@@ -1846,6 +2155,14 @@ html:not([data-story="pinned"]) .demo-cursor {
 }
 
 @media (max-width: 760px) {
+  .hood-grid,
+  .footer-grid,
+  .footer-nav {
+    grid-template-columns: 1fr;
+  }
+  .code-block {
+    font-size: 0.75rem;
+  }
   .crisis-grid {
     grid-template-columns: 1fr;
   }
@@ -1913,6 +2230,8 @@ html:not([data-story="pinned"]) .demo-cursor {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .copy-btn,
+  .ext-link::after,
   .button,
   .console-tab,
   .scenario-chip,

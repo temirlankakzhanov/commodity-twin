@@ -113,19 +113,24 @@
     document.querySelectorAll("[data-github-link]").forEach(function (a) {
       a.href = config.githubUrl;
     });
-    var app = document.querySelector("[data-app-link]");
+    var apps = document.querySelectorAll("[data-app-link]");
     if (config.appUrl) {
-      app.href = config.appUrl;
+      apps.forEach(function (app) {
+        app.href = config.appUrl;
+      });
       return;
     }
-    app.setAttribute("aria-disabled", "true");
-    app.setAttribute("aria-describedby", "app-note");
-    app.addEventListener("click", function (event) {
-      event.preventDefault();
+    apps.forEach(function (app) {
+      app.setAttribute("aria-disabled", "true");
+      app.setAttribute("aria-describedby", "app-note");
+      app.addEventListener("click", function (event) {
+        event.preventDefault();
+      });
     });
-    var note = document.querySelector("[data-app-note]");
-    note.id = "app-note";
-    note.hidden = false;
+    document.querySelectorAll("[data-app-note]").forEach(function (note, i) {
+      if (i === 0) note.id = "app-note";
+      note.hidden = false;
+    });
   }
 
   // Lanes active in the base plan, idle after the closure, and routed through Hormuz.
@@ -1059,6 +1064,16 @@
           });
           window.setTimeout(run, 1200);
         }
+
+        // Where the console has fully grown in, read from the live timeline (so it is right after
+        // a resize or the takeover shortening as well). Used by the footer's "How it works" link.
+        window.SITE_STORY = {
+          consoleY: function () {
+            var st = tl.scrollTrigger;
+            if (!st || !st.enabled || !con || html.getAttribute("data-story") !== "pinned") return null;
+            return st.start + ((T + CONSOLE_IN) / tl.duration()) * (st.end - st.start);
+          },
+        };
 
         function shortenPinAfterTakeover() {
           var st = tl.scrollTrigger;
