@@ -87,7 +87,7 @@ Committed snapshots in `data/snapshots/` should only be created from sources who
 allows redistribution.
 
 **GSAP (landing page animation)**: not included in this repository. GSAP 3.15.0 is distributed
-under GreenSock's standard "no charge" licence ([gsap.com/standard-license](https://gsap.com/standard-license)),
+under GreenSock's standard "no charge" licence ([gsap.com/community/standard-license](https://gsap.com/community/standard-license/)),
 not an open-source licence; `make site-assets` and the Pages workflow download the pinned
 release and verify its checksum.
 

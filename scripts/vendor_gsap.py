@@ -1,9 +1,10 @@
 """Verify the pinned GSAP release and unpack the two files the landing page loads.
 
 GSAP is not committed: it is distributed under GreenSock's standard "no charge" licence
-(https://gsap.com/standard-license), not an open-source licence. ``make site-assets`` (locally)
-and the Pages workflow (at deploy) download the tarball with curl and pass it to this script,
-which refuses it unless its SHA-512 matches the npm registry integrity pinned below.
+(https://gsap.com/community/standard-license/), not an open-source licence.
+``make site-assets`` (locally) and the Pages workflow (at deploy) download the tarball with curl
+and pass it to this script, which refuses it unless its SHA-512 matches the npm registry
+integrity pinned below.
 
 Usage::
 
