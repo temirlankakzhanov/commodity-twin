@@ -47,6 +47,9 @@
   var VH_PER_UNIT = 50;
   var STORY_UNITS = 4.6;
   var CONSOLE_IN = 0.7;
+  // After a takeover, drop the rest of the demo's pinned scroll (see shortenPinAfterTakeover).
+  // Set to false to keep the full pin length if the shortening ever shows a visible jump.
+  var SHORTEN_AFTER_TAKEOVER = true;
   var MARKER_GAP = 8; // px kept clear between neighbouring marker labels
   var LANE_CLEARANCE = 6; // px kept clear between a label and an active lane
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -816,7 +819,9 @@
   function init() {
     applyLinks();
     if (!window.SITE_DATA) return;
-    window.SITE_DATA.then(function (data) {
+    // Wait for the other deferred scripts too (console.js), not only for the data.
+    Promise.all([window.SITE_DATA, window.SITE_DOM_READY]).then(function (results) {
+      var data = results[0];
       var geo = data[0];
       var site = data[1];
       var lanes = closedLanes(site);
@@ -842,7 +847,10 @@
         if (scale !== 1) window.gsap.set(card, { scale: 1 });
         main.measure({ hero: heroObstacles(box), closure: pinned ? closureObstacles(box) : [] });
         if (scale !== 1) window.gsap.set(card, { scale: scale });
-        if (pinned && con) placeConsole();
+        if (pinned && con) {
+          placeConsole();
+          if (con.measureDemo) con.measureDemo();
+        }
         drawFleet();
       }
 
@@ -1023,6 +1031,44 @@
           con.attach(tl, T + CONSOLE_IN);
           live = null;
           consolePhase(0);
+          con.onTakeover = SHORTEN_AFTER_TAKEOVER ? afterTakeover : null;
+        }
+
+        // Once the visitor takes over, the demo's remaining scroll would only scroll a frozen
+        // console. Swap it for a short tail and refresh every ScrollTrigger on the page (so later
+        // sections move up with it). The scale (VH_PER_UNIT per unit) is unchanged, so the
+        // position stays put; only a reader already past the new end is clamped to it, where
+        // the frame looks the same.
+        // The takeover fires on pointerdown or keydown: a refresh right then would move the pinned
+        // frame mid-click and swallow the click. Wait until the press is over.
+        function afterTakeover() {
+          var done = false;
+          var run = function () {
+            if (done) return;
+            done = true;
+            ["pointerup", "keyup", "click"].forEach(function (type) {
+              document.removeEventListener(type, later, true);
+            });
+            shortenPinAfterTakeover();
+          };
+          var later = function () {
+            window.setTimeout(run, 150);
+          };
+          ["pointerup", "keyup", "click"].forEach(function (type) {
+            document.addEventListener(type, later, true);
+          });
+          window.setTimeout(run, 1200);
+        }
+
+        function shortenPinAfterTakeover() {
+          var st = tl.scrollTrigger;
+          // A rebuild since the takeover already gave the scene the short tail.
+          if (!st || !st.enabled || html.getAttribute("data-story") !== "pinned") return;
+          var y = window.scrollY;
+          con.removeDemo(tl);
+          st.vars.end = "+=" + Math.round(tl.duration() * VH_PER_UNIT) + "%";
+          window.ScrollTrigger.refresh();
+          window.scrollTo(0, Math.min(y, st.end - 1));
         }
 
         return function () {

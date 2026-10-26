@@ -8,6 +8,14 @@ window.SITE_DATA = Promise.all(
   })
 );
 
+// Resolves once every deferred script has run (DOMContentLoaded comes after them). The scene
+// waits for it as well as the data, so console.js is always in place before the scene is built,
+// even when a slow script arrives after the data files.
+window.SITE_DOM_READY = new Promise(function (resolve) {
+  if (document.readyState === "complete") resolve();
+  else document.addEventListener("DOMContentLoaded", resolve, { once: true });
+});
+
 // The daily backtest series (validation.json) is larger and only the Validation tab needs it:
 // it is fetched in idle time after the page has loaded, never on a click, so the tab opens at
 // once. SITE_VALIDATION resolves with the series, or rejects if the file cannot be loaded.

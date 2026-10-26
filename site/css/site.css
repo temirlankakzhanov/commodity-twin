@@ -1615,15 +1615,62 @@ html[data-story="pinned"] .console-panel.is-selected {
   margin: 0;
 }
 
-/* Scroll sub-steps: the console carries data-focus while scroll drives it; everything outside
-   the focus dims (opacity only). Cleared for good once the visitor takes over. */
-.console[data-focus="flows-active"] .scenario-summary,
-.console[data-focus="flows-total"] .lane-list,
-.console[data-focus="flows-total"] .idle-toggle,
-.console[data-focus="monitor-strait"] .monitor-side,
-.console[data-focus="monitor-count"] .monitor-chart-wrap,
-.console[data-focus="verdicts-settings"] .val-tape-wrap {
-  opacity: 0.4;
+/* Auto demo cursor (pinned layout only): moved with transforms by console.js, never clickable. */
+.demo-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0;
+  transition: none;
+}
+.demo-cursor.is-gone {
+  opacity: 0 !important;
+  visibility: hidden;
+  transition: opacity 300ms ease, visibility 0s linear 300ms;
+}
+html:not([data-story="pinned"]) .demo-cursor {
+  display: none;
+}
+.demo-arrow {
+  display: block;
+  width: 16px;
+  height: 20px;
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 1.2;
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.5));
+}
+.demo-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+}
+.demo-cursor.is-left .demo-label {
+  left: auto;
+  right: 6px;
+}
+.demo-cursor.is-above .demo-label {
+  top: auto;
+  bottom: 48px; /* clears the value under the cursor tip (big numbers are about 30px tall) */
+}
+.demo-label {
+  position: absolute;
+  left: 18px;
+  top: 20px;
+  padding: 2px 7px;
+  background: rgb(10 10 11 / 0.85);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  font: 400 0.625rem/1.4 var(--mono);
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {

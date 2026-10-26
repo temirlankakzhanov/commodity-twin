@@ -17,7 +17,8 @@
     REVIEW: ["M6 1.6 10.8 10.2H1.2Z", "M6 5.2v2.1", "M6 8.7v.01"],
     FAIL: ["M2 2 10 10", "M10 2 2 10"],
   };
-  // Scroll sub-steps, in order. `focus` is the console's data-focus value (see site.css).
+  // Scroll sub-steps, in order: each is a timeline label ("console:<id>"); the auto demo below
+  // runs across them.
   var STEPS = [
     { tab: 0, id: "flows-active", label: "Routes the plan uses" },
     { tab: 0, id: "flows-total", label: "Plan margin and volume" },
@@ -27,6 +28,7 @@
     { tab: 2, id: "verdicts-grid", label: "Verdicts" },
   ];
   var STEP_UNITS = 0.65; // timeline units per sub-step (story.js: 1 unit = 50vh)
+  var TAIL_UNITS = 0.6; // after a takeover the console keeps only this much pinned scroll
 
   var SHORT = {
     "Strait of Hormuz": "Hormuz",
@@ -38,10 +40,13 @@
   };
   var root = null;
   var monitorLine = null; // the Monitor traffic path, drawn once by the stacked-layout reveal
+  // Setters the auto demo uses instead of clicks (no DOM events, so no takeover); filled in by
+  // each tab's builder.
+  var demo = {};
   var tabs = [];
   var panels = [];
   var manual = false;
-  var current = { tab: 0, step: -1 };
+  var current = { tab: 0 };
 
   function fixed(value, digits) {
     return (value < 0 ? MINUS : "") + Math.abs(value).toFixed(digits);
@@ -409,6 +414,20 @@
       });
     });
     show("base", false);
+
+    demo.scenario = function (id) {
+      chips.forEach(function (c) {
+        c.setAttribute("aria-pressed", c.getAttribute("data-scenario") === id ? "true" : "false");
+      });
+      show(id, false);
+    };
+    demo.idle = function (open) {
+      if ((toggle.getAttribute("aria-expanded") === "true") === open) return;
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      idleList.hidden = !open;
+      toggleText();
+      updateFade();
+    };
   }
 
   // ------------------------------------------------------------------ monitor
@@ -676,8 +695,11 @@
         formatDate(dayISO(idx)) + " · traffic " + (t === null ? "–" : fixed(t, 1)) + " · baseline " +
         (b === null ? "–" : fixed(b, 1)) + " calls/day";
       if (flaggedAt(idx)) tip.appendChild(alertChip("flagged"));
-      var left = x > box.width * 0.6;
-      tip.style.transform = "translateX(" + (left ? x - 8 : x + 8).toFixed(1) + "px) translateX(" + (left ? "-100%" : "0") + ")";
+      // Keep the tooltip inside the chart box: right of the line, or left of it, clamped.
+      var w = tip.offsetWidth;
+      var tx = x + 8 + w <= box.width ? x + 8 : x - 8 - w;
+      tx = Math.max(0, Math.min(box.width - w, tx));
+      tip.style.transform = "translateX(" + tx.toFixed(1) + "px)";
       cross.classList.add("is-on");
       tip.classList.add("is-on");
     }
@@ -760,6 +782,27 @@
       return chip;
     });
     show(first, false);
+
+    demo.chart = chart;
+    demo.cross = function (idx) {
+      if (idx === null) {
+        hideCross();
+        return;
+      }
+      if (!box) box = chart.getBoundingClientRect();
+      place(idx);
+    };
+    demo.dropCrossBox = function () {
+      box = null;
+    };
+    // The longest flagged period of the shown chokepoint, as day indices, and the axis length.
+    demo.sweep = function () {
+      var best = null;
+      cur.flagged.forEach(function (run) {
+        if (!best || run[1] - run[0] > best[1] - best[0]) best = run;
+      });
+      return { run: best || [0, n - 1], n: n };
+    };
   }
 
   // ------------------------------------------------------------------ validation
@@ -1030,8 +1073,7 @@
       tableBox.classList.toggle("has-more", more);
     }
     tableBox.addEventListener("scroll", tableFade, { passive: true });
-    toggle.addEventListener("click", function () {
-      var open = toggle.getAttribute("aria-expanded") !== "true";
+    function setTable(open) {
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
       tableBox.hidden = !open;
       tape.hidden = open;
@@ -1040,7 +1082,13 @@
       toggle.textContent = open ? "Show as tape" : "Show as table";
       tableFade();
       if (!open) draw();
+    }
+    toggle.addEventListener("click", function () {
+      setTable(toggle.getAttribute("aria-expanded") !== "true");
     });
+    demo.table = function (open) {
+      if ((toggle.getAttribute("aria-expanded") === "true") !== open) setTable(open);
+    };
 
     function show(m, animate) {
       current = m;
@@ -1176,6 +1224,12 @@
       return chip;
     });
     summary(models[0], false);
+    demo.model = function (index) {
+      chips.forEach(function (c, i) {
+        c.setAttribute("aria-pressed", i === index ? "true" : "false");
+      });
+      show(models[index], false);
+    };
 
     // The daily series is preloaded in idle time (data.js); the summary above never waits for it.
     var pendingSeries = window.SITE_VALIDATION || Promise.reject(new Error("no loader"));
@@ -1256,7 +1310,8 @@
   function stopAuto() {
     if (manual) return;
     manual = true;
-    root.removeAttribute("data-focus");
+    endDemo();
+    if (api.onTakeover) api.onTakeover();
   }
 
   function takeOver(index, focus) {
@@ -1311,20 +1366,284 @@
     });
   }
 
-  // ------------------------------------------------------------------ scroll sub-steps
+  // ------------------------------------------------------------------ auto demo
 
-  // Called by the scrubbed timeline; does nothing once the visitor has taken over.
-  function autoStep(index) {
-    if (manual || index === current.step) return;
-    current.step = index;
-    var step = STEPS[index];
-    if (step.tab !== current.tab) select(step.tab);
-    root.setAttribute("data-focus", step.id);
+  // Pinned layout only. A ghost cursor walks through the console while the visitor scrolls: its
+  // position and every control it "clicks" are a pure function of the scroll position p (in
+  // sub-step units, 0 to STEPS.length), so scrolling back undoes the steps exactly. The clicks go
+  // through the setters in `demo`, not DOM events. The first real click, mouse press or key on a
+  // control ends the demo for the rest of the visit and leaves the console as it is.
+  var WAYPOINTS = [
+    { at: 0.0, target: "chip-base" },
+    { at: 0.35, target: "chip-strait-of-hormuz", click: true },
+    { at: 0.85, target: "idle-toggle", click: true },
+    { at: 1.3, target: "kpi-delta", label: "above" },
+    { at: 1.75, target: "tab-monitor", click: true },
+    { at: 2.1, target: "sweep-start" },
+    { at: 2.5, target: "sweep-end" },
+    { at: 2.8, target: "monitor-info", click: true },
+    { at: 3.15, target: "monitor-info", click: true },
+    { at: 3.45, target: "tab-validation", click: true },
+    { at: 3.95, target: "model-garch", click: true },
+    { at: 4.45, target: "val-table-toggle", click: true },
+    { at: 6.0, target: "val-table-toggle" },
+  ];
+  var CLICK_LAG = 0.05; // a click lands just after the cursor arrives
+  var cursor = null;
+  var ring = null;
+  var pin = null;
+  var points = {};
+  var sweep = null;
+  var demoOn = false;
+  var demoState = {};
+  var liveRegions = [];
+  var labelW = 0; // demo label width, read with the targets
+  var bound = 0; // right edge of the console in the pinned frame
+  var labelSide = "";
+
+  function offsetIn(el) {
+    var x = 0;
+    var y = 0;
+    while (el && el !== pin) {
+      x += el.offsetLeft;
+      y += el.offsetTop;
+      el = el.offsetParent;
+    }
+    return [x, y];
+  }
+  function centre(el) {
+    var o = offsetIn(el);
+    return [o[0] + el.offsetWidth / 2, o[1] + el.offsetHeight / 2];
   }
 
-  window.SITE_CONSOLE = {
+  // Target positions relative to the pinned frame, from layout offsets (transforms ignored). Read
+  // on refresh and after a demo step changes the layout; never per frame.
+  function measureDemo() {
+    if (!cursor) return;
+    var q = function (sel) {
+      return root.querySelector(sel);
+    };
+    var map = {
+      "chip-base": q('[data-demo="chip-base"]'),
+      "chip-strait-of-hormuz": q('[data-demo="chip-strait-of-hormuz"]'),
+      "idle-toggle": q('[data-demo="idle-toggle"]'),
+      "kpi-delta": q("#panel-optimiser .kpi:nth-child(2) dd"),
+      "tab-monitor": q("#tab-monitor"),
+      "monitor-info": q("#panel-monitor .info-button"),
+      "tab-validation": q("#tab-validation"),
+      "model-garch": q('[data-demo="model-chip-filtered-hs-garch-1-1"]'),
+      "val-table-toggle": q('[data-demo="val-table-toggle"]'),
+    };
+    Object.keys(map).forEach(function (key) {
+      if (map[key] && map[key].offsetParent !== null) points[key] = centre(map[key]);
+    });
+    labelW = cursor.querySelector(".demo-label").offsetWidth;
+    bound = offsetIn(root)[0] + root.offsetWidth - 8;
+    if (demo.chart && demo.sweep) {
+      sweep = demo.sweep();
+      var o = offsetIn(demo.chart);
+      var w = demo.chart.offsetWidth;
+      var y = o[1] + demo.chart.offsetHeight * 0.55;
+      points["sweep-start"] = [o[0] + (sweep.run[0] / (sweep.n - 1)) * w, y];
+      points["sweep-end"] = [o[0] + (sweep.run[1] / (sweep.n - 1)) * w, y];
+    }
+  }
+
+  function ease(f) {
+    return f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+  }
+
+  // The console state for a scroll position: each step sets a state, it never toggles one.
+  function stateAt(p) {
+    var crossOn = p >= 2.1 && p < 2.5 + CLICK_LAG;
+    return {
+      scenario: p >= 0.35 + CLICK_LAG ? "strait-of-hormuz" : "base",
+      idle: p >= 0.85 + CLICK_LAG,
+      tab: p >= 3.45 + CLICK_LAG ? 2 : p >= 1.75 + CLICK_LAG ? 1 : 0,
+      cross: crossOn ? Math.min(1, Math.max(0, (p - 2.1) / 0.4)) : null,
+      info: p >= 2.8 + CLICK_LAG && p < 3.15 + CLICK_LAG,
+      model: p >= 3.95 + CLICK_LAG ? 4 : 0,
+      table: p >= 4.45 + CLICK_LAG,
+    };
+  }
+
+  function applyState(next) {
+    var changed = false;
+    if (next.scenario !== demoState.scenario && demo.scenario) {
+      demo.scenario(next.scenario);
+      changed = true;
+    }
+    if (next.idle !== demoState.idle && demo.idle) {
+      demo.idle(next.idle);
+      changed = true;
+    }
+    if (next.tab !== demoState.tab) {
+      select(next.tab);
+      if (demo.dropCrossBox) demo.dropCrossBox();
+    }
+    if (next.info !== demoState.info) {
+      var button = root.querySelector("#panel-monitor .info-button");
+      closeInfo();
+      if (next.info && button) {
+        button.setAttribute("aria-expanded", "true");
+        document.getElementById(button.getAttribute("aria-controls")).hidden = false;
+      }
+    }
+    if (next.model !== demoState.model && demo.model) demo.model(next.model);
+    if (next.table !== demoState.table && demo.table) demo.table(next.table);
+    if (demo.cross && (next.cross !== null || demoState.cross !== null)) {
+      demo.cross(next.cross === null || !sweep ? null : Math.round(sweep.run[0] + next.cross * (sweep.run[1] - sweep.run[0])));
+    }
+    demoState = next;
+    if (changed) measureDemo(); // the lane list moves the idle toggle
+  }
+
+  function cursorAt(p) {
+    var i = 0;
+    while (i < WAYPOINTS.length - 2 && p >= WAYPOINTS[i + 1].at) i += 1;
+    var a = WAYPOINTS[i];
+    var b = WAYPOINTS[i + 1];
+    var pa = points[a.target];
+    var pb = points[b.target];
+    if (!pa || !pb) return null;
+    var raw = Math.min(1, Math.max(0, (p - a.at) / (b.at - a.at)));
+    var f = ease(raw);
+    // The label follows the waypoint the cursor is nearest to.
+    var near = raw < 0.5 ? a : b;
+    return { x: pa[0] + (pb[0] - pa[0]) * f, y: pa[1] + (pb[1] - pa[1]) * f, above: near.label === "above" };
+  }
+
+  // The label sits right of the cursor, or left of it near the console's right edge, and above
+  // it where it would cover the value being pointed at. Classes change only when the side does.
+  function placeLabel(at) {
+    var side = (at.x + 18 + labelW > bound ? "left" : "right") + (at.above ? " above" : "");
+    if (side === labelSide) return;
+    labelSide = side;
+    cursor.classList.toggle("is-left", side.indexOf("left") === 0);
+    cursor.classList.toggle("is-above", at.above);
+  }
+
+  // A press ring around each click time.
+  function ringAt(p) {
+    for (var i = 0; i < WAYPOINTS.length; i += 1) {
+      var w = WAYPOINTS[i];
+      if (!w.click) continue;
+      var d = p - (w.at + CLICK_LAG);
+      if (d > -0.03 && d < 0.12) return (d + 0.03) / 0.15;
+    }
+    return -1;
+  }
+
+  function demoAt(p) {
+    if (!demoOn || manual) return;
+    if (p < 0) {
+      applyState(stateAt(0));
+      cursor.style.opacity = "0";
+      return;
+    }
+    applyState(stateAt(p));
+    var at = cursorAt(p);
+    if (!at) return;
+    placeLabel(at);
+    cursor.style.opacity = String(Math.min(1, p / 0.15));
+    cursor.style.transform = "translate(" + at.x.toFixed(1) + "px," + at.y.toFixed(1) + "px)";
+    var r = ringAt(p);
+    ring.style.opacity = r < 0 ? "0" : String(0.8 * (1 - r));
+    ring.style.transform = "translate(-50%,-50%) scale(" + (r < 0 ? 0.4 : 0.4 + r * 1.2).toFixed(2) + ")";
+  }
+
+  var listening = false;
+  function startDemo() {
+    if (demoOn || manual || !root) return;
+    pin = root.parentNode;
+    if (!cursor) {
+      cursor = document.createElement("div");
+      cursor.className = "demo-cursor";
+      cursor.setAttribute("aria-hidden", "true");
+      cursor.innerHTML =
+        '<span class="demo-ring"></span><svg viewBox="0 0 16 20" class="demo-arrow"><path d="M1 1v15l4-4 3 7 3-1-3-7h6z"/></svg>' +
+        '<span class="demo-label">Auto demo · click to explore</span>';
+      ring = cursor.querySelector(".demo-ring");
+      pin.appendChild(cursor);
+    }
+    cursor.style.opacity = "0";
+    demoOn = true;
+    demoState = stateAt(0);
+    // Demo-driven changes are not announced; real choices are again after a takeover.
+    liveRegions = Array.prototype.slice.call(root.querySelectorAll("[aria-live]"));
+    liveRegions.forEach(function (node) {
+      node.setAttribute("aria-live", "off");
+    });
+    measureDemo();
+    if (listening) return;
+    listening = true;
+    var SCROLL_KEYS = [" ", "Spacebar", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+    var SCROLL_CODES = ["Space", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+    var MODIFIERS = ["Shift", "Control", "Alt", "Meta"];
+    document.addEventListener(
+      "click",
+      function (event) {
+        if (event.isTrusted) stopAuto();
+      },
+      true
+    );
+    document.addEventListener(
+      "pointerdown",
+      function (event) {
+        // Touch starts every scroll on a tablet: only a mouse or pen press counts here (a tap
+        // still arrives as a click).
+        if (event.isTrusted && event.pointerType !== "touch") stopAuto();
+      },
+      true
+    );
+    document.addEventListener(
+      "keydown",
+      function (event) {
+        if (!event.isTrusted || manual) return;
+        // An event that names no key at all is not a real key press.
+        if (!event.key && !event.code && !event.keyCode) return;
+        var active = document.activeElement;
+        var onPage = !active || active === document.body || active === document.documentElement;
+        var scrollKey =
+          SCROLL_KEYS.indexOf(event.key) >= 0 ||
+          SCROLL_CODES.indexOf(event.code) >= 0 ||
+          (event.keyCode >= 32 && event.keyCode <= 40);
+        if (onPage && scrollKey) return;
+        if (MODIFIERS.indexOf(event.key) >= 0) return;
+        stopAuto();
+      },
+      true
+    );
+  }
+
+  function pauseDemo() {
+    if (!demoOn) return;
+    demoOn = false;
+    if (cursor) cursor.style.opacity = "0";
+    liveRegions.forEach(function (node) {
+      node.setAttribute("aria-live", "polite");
+    });
+  }
+
+  function endDemo() {
+    if (!demoOn) return;
+    pauseDemo();
+    if (cursor) cursor.classList.add("is-gone");
+    closeInfo();
+    if (demo.cross) demo.cross(null);
+  }
+
+  var demoTween = null;
+  var demoStart = 0;
+  var api = (window.SITE_CONSOLE = {
     steps: STEPS,
-    units: STEPS.length * STEP_UNITS,
+    // Timeline units the console adds to the pinned scene: the demo, or a short tail once the
+    // visitor has taken over.
+    get units() {
+      return manual ? TAIL_UNITS : STEPS.length * STEP_UNITS;
+    },
+    // Set by story.js: called once, when the visitor takes over.
+    onTakeover: null,
 
     build: function (site, geo) {
       root = document.querySelector(".console");
@@ -1346,8 +1665,13 @@
         step.at = at + i * STEP_UNITS;
         tl.addLabel("console:" + step.id, step.at);
       });
-      current.step = -1;
-      tl.fromTo(
+      demoStart = at;
+      if (manual) {
+        tl.to({}, { duration: TAIL_UNITS }, at);
+        return at + TAIL_UNITS;
+      }
+      startDemo();
+      demoTween = window.gsap.fromTo(
         proxy,
         { p: 0 },
         {
@@ -1356,12 +1680,21 @@
           ease: "none",
           immediateRender: false,
           onUpdate: function () {
-            autoStep(Math.min(STEPS.length - 1, Math.floor(proxy.p)));
+            demoAt(proxy.p);
           },
-        },
-        at
+        }
       );
+      tl.add(demoTween, at);
       return at + STEPS.length * STEP_UNITS;
+    },
+
+    // Swap the demo for the short tail in a live timeline (story.js, after a takeover).
+    removeDemo: function (tl) {
+      if (!demoTween) return;
+      tl.remove(demoTween);
+      demoTween.kill();
+      demoTween = null;
+      tl.to({}, { duration: TAIL_UNITS }, demoStart);
     },
 
     // Stacked layout: once-only reveals, created inside story.js's matchMedia context (so they
@@ -1387,7 +1720,7 @@
 
     // Before the sub-steps (scrolled back up), the console rests on the first one.
     reset: function () {
-      autoStep(0);
+      demoAt(-1);
     },
 
     // Pinned mode: the console is inert until it has grown in.
@@ -1397,12 +1730,16 @@
       else root.setAttribute("inert", "");
     },
 
-    // Leaving pinned mode: no focus dimming, everything readable.
+    // Leaving pinned mode: the demo pauses (its cursor is hidden by CSS) and announcements are on.
     unpin: function () {
       if (!root) return;
       root.removeAttribute("inert");
-      root.removeAttribute("data-focus");
-      current.step = -1;
+      pauseDemo();
     },
-  };
+
+    // Re-measure the demo targets (story.js calls this on ScrollTrigger refresh).
+    measureDemo: function () {
+      measureDemo();
+    },
+  });
 })();
