@@ -1178,6 +1178,21 @@
         });
       }
 
+      // Printing: a pinned scene would print its current frame with later blocks still hidden.
+      // Print the stacked layout instead, and rebuild the pinned scene afterwards.
+      var printing = false;
+      window.addEventListener("beforeprint", function () {
+        if (!mm || html.getAttribute("data-story") !== "pinned") return;
+        printing = true;
+        mm.revert();
+        renderStatic(); // leftover inline start states are overridden by the print rules in site.css
+      });
+      window.addEventListener("afterprint", function () {
+        if (!printing) return;
+        printing = false;
+        rebuild();
+      });
+
       // Line breaks and the fitted camera depend on the width: rebuild on width changes. A height
       // change only needs fresh pin lengths (they are in % of the viewport): a debounced refresh.
       // Crossing PINNED_QUERY in either direction is handled by gsap.matchMedia itself.

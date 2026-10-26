@@ -2247,3 +2247,51 @@ html:not([data-story="pinned"]) .demo-cursor {
     transition: none;
   }
 }
+
+/* Print: every content block in its final state, whatever inline start state a scroll effect
+   left behind (!important beats inline styles), and no helper layers. The map layers keep their
+   own transforms. */
+@media print {
+  .hero-copy,
+  .hero-copy *,
+  .map-key,
+  .closure-copy,
+  .closure-copy *,
+  [data-closure-card],
+  .console,
+  .console-panel,
+  .crises-head > *,
+  .crisis-grid,
+  .crisis-card,
+  .hood-head > *,
+  .hood-inner,
+  .hood-facts,
+  .hood-code,
+  .site-footer h2,
+  .footer-block {
+    opacity: 1 !important;
+    transform: none !important;
+    visibility: visible !important;
+  }
+  .spark-line,
+  .route-path,
+  .mc-traffic,
+  .lane-closed,
+  .lane-closed-glow {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+  .stage-veil,
+  .hormuz-glow,
+  .demo-cursor,
+  .type-cover,
+  .scroll-hint,
+  .monitor-cross,
+  .monitor-tip,
+  .val-cross,
+  .spark-dot,
+  .spark-tip,
+  body::after {
+    display: none !important;
+  }
+}
