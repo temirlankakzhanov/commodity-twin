@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import io
+import re
 import tarfile
+from html.parser import HTMLParser
+from pathlib import Path
 
 import pytest
 
 from scripts import build_site_map_fonts as geo
 from scripts import vendor_gsap
+
+SITE = Path(__file__).resolve().parents[1] / "site"
 
 
 def _tarball(members: dict[str, bytes]) -> bytes:
@@ -66,3 +71,30 @@ def test_equal_earth_hand_computed_points():
     assert geo.equal_earth(-180.0, 0.0) == (-541.3, 0.0)
     x, y = geo.equal_earth(30.0, 45.0)
     assert x > 0 and y < 0  # east and north (SVG y points down)
+
+
+class _AppLinks(HTMLParser):
+    """Collect the attributes of every ``<a data-app-link>``."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[dict[str, str | None]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        found = dict(attrs)
+        if tag == "a" and "data-app-link" in found:
+            self.links.append(found)
+
+
+def test_launch_links_in_the_html_match_the_configured_app_url():
+    config = (SITE / "js" / "config.js").read_text(encoding="utf-8")
+    match = re.search(r'appUrl:\s*"([^"]+)"', config)
+    assert match, "appUrl is not set in site/js/config.js"
+    parser = _AppLinks()
+    parser.feed((SITE / "index.html").read_text(encoding="utf-8"))
+    assert len(parser.links) == 3  # hero, section 5, footer
+    for link in parser.links:
+        assert link["href"] == match.group(1)
+        assert link["target"] == "_blank"
+        assert link["rel"] == "noopener noreferrer"
+        assert link.get("aria-label")
