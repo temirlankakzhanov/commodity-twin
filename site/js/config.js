@@ -1,5 +1,5 @@
-// The one place to set public links. appUrl stays null until the Streamlit app is deployed.
+// The one place to set public links.
 window.SITE_CONFIG = Object.freeze({
-  appUrl: null,
+  appUrl: "https://commodity-twin.streamlit.app",
   githubUrl: "https://github.com/temirlankakzhanov/commodity-twin",
 });

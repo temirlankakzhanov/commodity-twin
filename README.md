@@ -4,6 +4,8 @@
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+**Live demo:** [commodity-twin.streamlit.app](https://commodity-twin.streamlit.app)
+
 A small, honest model of a physical crude-oil trading desk, built around three questions:
 
 1. **Where should the barrels go?** A linear programme chooses margin-maximising flows over a

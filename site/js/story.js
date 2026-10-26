@@ -117,19 +117,21 @@
     if (config.appUrl) {
       apps.forEach(function (app) {
         app.href = config.appUrl;
+        app.target = "_blank";
+        app.rel = "noopener noreferrer";
+        app.setAttribute("aria-label", "Launch the app (opens in a new tab)");
       });
       return;
     }
+    // Without an app URL the links stay inert and the load-time note is not shown.
     apps.forEach(function (app) {
       app.setAttribute("aria-disabled", "true");
-      app.setAttribute("aria-describedby", "app-note");
       app.addEventListener("click", function (event) {
         event.preventDefault();
       });
     });
-    document.querySelectorAll("[data-app-note]").forEach(function (note, i) {
-      if (i === 0) note.id = "app-note";
-      note.hidden = false;
+    document.querySelectorAll("[data-app-note]").forEach(function (note) {
+      note.hidden = true;
     });
   }
 
