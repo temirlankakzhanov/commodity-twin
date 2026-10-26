@@ -44,9 +44,15 @@ def get_service() -> DataService:
     return DataService()
 
 
-@st.cache_data(ttl=3600, show_spinner="Loading market data...")
+@st.cache_resource(ttl=3600, show_spinner="Loading market data...")
 def cached_market(demo: bool, refresh_token: int) -> MarketData:
-    """Market data, cached for an hour per (mode, refresh) combination."""
+    """Market data, cached for an hour per (mode, refresh) combination.
+
+    ``cache_resource`` rather than ``cache_data``: the value is never pickled. After a source
+    change Streamlit re-imports ``mtwin`` while ``get_service`` keeps the old ``DataService``,
+    whose results are instances of the old classes; pickling them fails. The shared
+    ``MarketData`` is frozen and the UI never modifies its frames in place.
+    """
     return load_market(get_service(), demo=demo, refresh=refresh_token > 0)
 
 
@@ -362,7 +368,8 @@ def run() -> None:
     demo, token = sidebar()
     market = cached_market(demo, token)
     data_banner(market)
-    prices_df = market.prices.data
+    # A shallow copy: the cached frame is shared between sessions and is never modified.
+    prices_df = market.prices.data.copy(deep=False)
     prices_df.attrs["label"] = market.prices.label
     prices = market_inputs(prices_df)
     returns = log_returns(prices_df)
