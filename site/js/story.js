@@ -956,12 +956,39 @@
           }
           if (t < T + CONSOLE_IN) con.reset();
         }
+        // Layers that have faded out are hidden (visibility), so an invisible layer never takes a
+        // click or a Tab stop from the one in view: the closure copy sits right over the hero
+        // buttons. Each window is [first moment it shows, moment it is gone], in timeline units.
+        var heroGone = Math.max(0.55 + 0.05 * (heroLines.length - 1), 0.1 + 0.45 + 0.05 * 2);
+        var layers = [
+          { nodes: [".hero-copy", ".map-key", ".scroll-hint"], from: -1, to: heroGone },
+          { nodes: [".closure-copy"], from: 2.05, to: con ? T + 0.3 : Infinity },
+          { nodes: ["[data-closure-card]"], from: 3.3, to: con ? T + 0.45 : Infinity },
+          { nodes: con ? [".console"] : [], from: T + 0.4, to: Infinity },
+        ].map(function (layer) {
+          layer.nodes = layer.nodes.map(function (sel) {
+            return document.querySelector(sel);
+          }).filter(Boolean);
+          layer.shown = null;
+          return layer;
+        });
+        function showLayers(t) {
+          layers.forEach(function (layer) {
+            var on = t > layer.from && t < layer.to;
+            if (on === layer.shown) return;
+            layer.shown = on;
+            layer.nodes.forEach(function (node) {
+              node.style.visibility = on ? "" : "hidden";
+            });
+          });
+        }
 
         var tl = gsap.timeline({
           defaults: { ease: "power2.out" },
           onUpdate: function () {
             main.render(false);
             renderNumbers(counter.p);
+            showLayers(tl.time());
             if (con) consolePhase(tl.time());
           },
           scrollTrigger: {
@@ -1041,6 +1068,8 @@
           con.onTakeover = SHORTEN_AFTER_TAKEOVER ? afterTakeover : null;
         }
 
+        showLayers(tl.time());
+
         // Once the visitor takes over, the demo's remaining scroll would only scroll a frozen
         // console. Swap it for a short tail and refresh every ScrollTrigger on the page (so later
         // sections move up with it). The scale (VH_PER_UNIT per unit) is unchanged, so the
@@ -1092,6 +1121,11 @@
           setMoving(false);
           pin.classList.remove("is-console-moving");
           stage.style.visibility = "";
+          layers.forEach(function (layer) {
+            layer.nodes.forEach(function (node) {
+              node.style.visibility = "";
+            });
+          });
           stage.classList.remove("is-covered");
           splitNodes.forEach(unsplit);
           // A rebuild (resize, fonts) re-pins straight away; only fall back when the query no

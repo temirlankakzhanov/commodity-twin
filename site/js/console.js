@@ -1581,10 +1581,15 @@
     var SCROLL_KEYS = [" ", "Spacebar", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
     var SCROLL_CODES = ["Space", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
     var MODIFIERS = ["Shift", "Control", "Alt", "Meta"];
+    // Only the console's own controls take over: a press or key anywhere else on the page
+    // (the hero, empty space, Cmd+F, Tab elsewhere) leaves the demo running.
+    var inConsole = function (node) {
+      return !!node && node.nodeType === 1 && root.contains(node);
+    };
     document.addEventListener(
       "click",
       function (event) {
-        if (event.isTrusted) stopAuto();
+        if (event.isTrusted && inConsole(event.target)) stopAuto();
       },
       true
     );
@@ -1593,7 +1598,7 @@
       function (event) {
         // Touch starts every scroll on a tablet: only a mouse or pen press counts here (a tap
         // still arrives as a click).
-        if (event.isTrusted && event.pointerType !== "touch") stopAuto();
+        if (event.isTrusted && event.pointerType !== "touch" && inConsole(event.target)) stopAuto();
       },
       true
     );
@@ -1603,13 +1608,13 @@
         if (!event.isTrusted || manual) return;
         // An event that names no key at all is not a real key press.
         if (!event.key && !event.code && !event.keyCode) return;
-        var active = document.activeElement;
-        var onPage = !active || active === document.body || active === document.documentElement;
+        if (!inConsole(document.activeElement)) return;
         var scrollKey =
           SCROLL_KEYS.indexOf(event.key) >= 0 ||
           SCROLL_CODES.indexOf(event.code) >= 0 ||
           (event.keyCode >= 32 && event.keyCode <= 40);
-        if (onPage && scrollKey) return;
+        // Space or an arrow on the console box itself (not a control) only scrolls the page.
+        if (scrollKey && document.activeElement === root) return;
         if (MODIFIERS.indexOf(event.key) >= 0) return;
         stopAuto();
       },
