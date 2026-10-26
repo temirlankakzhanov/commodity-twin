@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -250,6 +252,52 @@ def test_negative_print_day_is_placed_on_the_axis_with_the_next_day_carrying_the
     assert dropped["in_test"] is False and dropped["next_offset"] == 20
 
 
+def test_portwatch_episode_compares_the_prior_year_with_the_lowest_complete_week():
+    # 2024: 100 calls a day. From Mon 6 Jan 2025: weeks of 50, 20 and 40, then a two-day stub of 1.
+    days = pd.date_range("2024-01-01", "2025-01-28", freq="D")
+    calls = []
+    for d in days:
+        if d < pd.Timestamp("2025-01-06"):
+            calls.append(100.0)
+        elif d <= pd.Timestamp("2025-01-12"):
+            calls.append(50.0)
+        elif d <= pd.Timestamp("2025-01-19"):
+            calls.append(20.0)
+        elif d <= pd.Timestamp("2025-01-26"):
+            calls.append(40.0)
+        else:
+            calls.append(1.0)  # 27-28 Jan: an incomplete week, ignored
+    transits = pd.DataFrame({"date": days, "portname": "A", "n_total": calls})
+    out = site.portwatch_episode(transits, "A", "2025-01-06", None)
+    assert out["before_mean"] == 100.0  # 6 Jan 2024 to 5 Jan 2025, all 100
+    assert out["lowest_week"] == {"value": 20.0, "week_end": "2025-01-19"}
+    assert out["window"] == ["2025-01-06", "2025-01-28"]
+
+
+def test_portwatch_episodes_on_the_committed_snapshot(tmp_path):
+    settings = replace(load_settings(), offline=True, cache_dir=tmp_path)
+    transits = DataService(settings).chokepoints()
+    assert transits.source == "snapshot"
+    eps = site.portwatch_episodes(transits.data)["episodes"]
+    got = {
+        e["chokepoint"]: (e["before_mean"], e["lowest_week"]["value"], e["lowest_week"]["week_end"])
+        for group in eps.values()
+        for e in group
+    }
+    assert got["Strait of Hormuz"] == (85.5, 1.4, "2026-03-22")
+    assert got["Bab el-Mandeb Strait"] == (74.5, 26.3, "2024-07-28")
+    assert got["Suez Canal"] == (73.8, 33.1, "2024-12-01")
+
+
+def test_committed_site_json_wti_next_day_loss_matches_validation_json():
+    data_dir = Path(site.__file__).resolve().parents[1] / "site" / "data"
+    payload = json.loads((data_dir / "site.json").read_text(encoding="utf-8"))
+    series = json.loads((data_dir / "validation.json").read_text(encoding="utf-8"))
+    card = payload["crises"]["wti_2020"]["model_next_day"]
+    assert card["date"] == "2020-04-21"
+    assert card["loss_usd_m"] == series["negative_print"]["next_loss"]
+
+
 def test_build_refuses_synthetic_inputs():
     prices = pd.DataFrame(
         {"BRENT": [80.0], "WTI": [76.0]}, index=pd.DatetimeIndex(["2024-01-02"], name="date")
@@ -306,6 +354,9 @@ def test_build_end_to_end_on_small_snapshot_like_inputs():
     assert worst["loss"] == max(series["loss"])
     assert series["negative_print"]["date"] == "2020-04-20"
     assert payload["validation"]["rule"]["fail_level"] == 0.01
+    nxt = payload["crises"]["wti_2020"]["model_next_day"]
+    assert nxt is None or nxt["loss_usd_m"] == series["negative_print"]["next_loss"]
+    assert set(payload["crises"]["portwatch"]["episodes"]) == {"red-sea", "hormuz"}
 
 
 def test_chokepoint_status_compares_last_week_with_the_reference_year():

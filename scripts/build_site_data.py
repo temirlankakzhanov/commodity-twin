@@ -157,6 +157,72 @@ def red_sea_2024(transits: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+# Episode windows for the crisis cards: our own editorial choice, stated on the page, not an
+# official definition of the events. ``None`` as the end means "to the end of the data".
+PORTWATCH_EPISODES = (
+    ("red-sea", ("Bab el-Mandeb Strait", "Suez Canal"), "2023-12-01", "2024-12-31"),
+    ("hormuz", ("Strait of Hormuz",), "2026-01-01", None),
+)
+
+
+def complete_weeks(daily: pd.Series) -> pd.Series:
+    """Monday-to-Sunday means of daily values, keeping only weeks with all seven days."""
+    weekly = daily.resample("W-SUN")
+    return weekly.mean()[weekly.count() == 7]
+
+
+def portwatch_episode(
+    transits: pd.DataFrame, name: str, start: str, end: str | None
+) -> dict[str, Any]:
+    """One chokepoint in an episode window: the average of the 12 months before the window
+    against the lowest complete weekly average inside it, plus weekly points for a sparkline."""
+    daily = transits[transits["portname"] == name].set_index("date")["n_total"].sort_index()
+    daily.index = pd.to_datetime(daily.index)
+    t0 = pd.Timestamp(start)
+    t1 = pd.Timestamp(end) if end else daily.index.max()
+    before = daily[(daily.index >= t0 - pd.DateOffset(months=12)) & (daily.index < t0)]
+    inside = complete_weeks(daily[(daily.index >= t0) & (daily.index <= t1)])
+    spark = complete_weeks(
+        daily[(daily.index >= t0 - pd.DateOffset(months=12)) & (daily.index <= t1)]
+    )
+    if inside.empty or before.empty:
+        # The window is outside the snapshot: say so rather than show a number.
+        return {
+            "chokepoint": name,
+            "before_mean": None,
+            "lowest_week": None,
+            "window": [start, end],
+        }
+    return {
+        "chokepoint": name,
+        "before_mean": round(float(before.mean()), 1),
+        "before_period": [
+            (t0 - pd.DateOffset(months=12)).strftime("%Y-%m-%d"),
+            (t0 - pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+        ],
+        "lowest_week": {
+            "value": round(float(inside.min()), 1),
+            "week_end": inside.idxmin().strftime("%Y-%m-%d"),
+        },
+        "window": [t0.strftime("%Y-%m-%d"), t1.strftime("%Y-%m-%d")],
+        "weekly": points(spark, 1),
+    }
+
+
+def portwatch_episodes(transits: pd.DataFrame) -> dict[str, Any]:
+    """The PortWatch crisis cards, all under one rule."""
+    return {
+        "rule": "Average of the 12 months before the window against the lowest complete "
+        "weekly average inside it.",
+        "unit": "daily transit calls, all vessel types",
+        "source": SOURCES["portwatch"],
+        "episodes": {
+            key: [portwatch_episode(transits, name, start, end) for name in names]
+            for key, names, start, end in PORTWATCH_EPISODES
+        },
+    }
+
+
 def coverage(transits: pd.DataFrame, days: int = QUALITY_WINDOW_DAYS) -> list[dict[str, Any]]:
     """Per chokepoint, how complete the last ``days`` calendar days are.
 
@@ -541,6 +607,19 @@ def build(
     summary, series = validation(prices.data, network, base_plan)
     wti = wti_2020(raw_wti, prices.data)
     series["negative_print"] = negative_print_day(series, wti["low"], wti["model_value"])
+    # The next trading day carries the move; the crisis card shows its loss without waiting for
+    # validation.json.
+    np_day = series["negative_print"]
+    wti["model_next_day"] = (
+        None
+        if np_day["next_offset"] is None
+        else {
+            "date": (
+                pd.Timestamp(series["start"]) + pd.Timedelta(days=np_day["next_offset"])
+            ).strftime("%Y-%m-%d"),
+            "loss_usd_m": np_day["next_loss"],
+        }
+    )
     return {
         "as_of": {
             "prices": prices.data.index.max().strftime("%Y-%m-%d"),
@@ -569,6 +648,7 @@ def build(
             "wti_2020": wti,
             "brent_2022": brent_2022(prices.data),
             "red_sea_2024": red_sea_2024(transits.data),
+            "portwatch": portwatch_episodes(transits.data),
         },
         "hormuz_traffic": hormuz_traffic(transits.data),
         "monitor": monitor_flags(transits.data),

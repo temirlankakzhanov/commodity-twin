@@ -17,6 +17,7 @@
   <script src="js/data.js" defer></script>
   <script src="js/story.js" defer></script>
   <script src="js/console.js" defer></script>
+  <script src="js/crises.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -253,6 +254,92 @@
             </div>
           </div>
         </section>
+      </div>
+    </section>
+
+    <!-- Crises: four episodes in our own data, numbers only, no causes asserted. Filled from
+         site.json by crises.js. -->
+    <section class="crises" id="crises" aria-labelledby="crises-title">
+      <div class="crises-inner">
+        <header class="crises-head">
+          <p class="eyebrow">Crises</p>
+          <h2 id="crises-title">What the data recorded</h2>
+          <p class="crises-caption">Prices from FRED and transit counts from IMF PortWatch, as reported. No causes are claimed here.</p>
+        </header>
+        <ul class="crisis-grid">
+          <li class="crisis-card" data-crisis="wti-2020">
+            <div class="crisis-head">
+              <h3 class="crisis-title">WTI · Apr 2020</h3>
+              <div class="info">
+                <button type="button" class="info-button" aria-expanded="false" aria-controls="info-crisis-wti-2020" data-demo="crisis-info-wti-2020"><span aria-hidden="true">?</span><span class="visually-hidden">About this episode</span></button>
+                <div class="info-pop" id="info-crisis-wti-2020" hidden></div>
+              </div>
+            </div>
+            <p class="crisis-number" data-c="number"></p>
+            <p class="crisis-label" data-c="label"></p>
+            <p class="crisis-line" data-c="line"></p>
+            <div class="crisis-spark" data-c="spark">
+              <svg class="crisis-svg" viewBox="0 0 300 80" preserveAspectRatio="none" role="img"></svg>
+              <span class="spark-dot" aria-hidden="true"></span>
+              <span class="spark-tip" aria-hidden="true"></span>
+            </div>
+            <p class="crisis-source" data-c="source"></p>
+          </li>
+          <li class="crisis-card" data-crisis="brent-2022">
+            <div class="crisis-head">
+              <h3 class="crisis-title">Brent · 2022</h3>
+              <div class="info">
+                <button type="button" class="info-button" aria-expanded="false" aria-controls="info-crisis-brent-2022" data-demo="crisis-info-brent-2022"><span aria-hidden="true">?</span><span class="visually-hidden">About this episode</span></button>
+                <div class="info-pop" id="info-crisis-brent-2022" hidden></div>
+              </div>
+            </div>
+            <p class="crisis-number" data-c="number"></p>
+            <p class="crisis-label" data-c="label"></p>
+            <p class="crisis-line" data-c="line"></p>
+            <div class="crisis-spark" data-c="spark">
+              <svg class="crisis-svg" viewBox="0 0 300 80" preserveAspectRatio="none" role="img"></svg>
+              <span class="spark-dot" aria-hidden="true"></span>
+              <span class="spark-tip" aria-hidden="true"></span>
+            </div>
+            <p class="crisis-source" data-c="source"></p>
+          </li>
+          <li class="crisis-card" data-crisis="red-sea">
+            <div class="crisis-head">
+              <h3 class="crisis-title">Bab el-Mandeb · 2023–24</h3>
+              <div class="info">
+                <button type="button" class="info-button" aria-expanded="false" aria-controls="info-crisis-red-sea" data-demo="crisis-info-red-sea"><span aria-hidden="true">?</span><span class="visually-hidden">About this episode</span></button>
+                <div class="info-pop" id="info-crisis-red-sea" hidden></div>
+              </div>
+            </div>
+            <p class="crisis-number" data-c="number"></p>
+            <p class="crisis-label" data-c="label"></p>
+            <p class="crisis-line" data-c="line"></p>
+            <div class="crisis-spark" data-c="spark">
+              <svg class="crisis-svg" viewBox="0 0 300 80" preserveAspectRatio="none" role="img"></svg>
+              <span class="spark-dot" aria-hidden="true"></span>
+              <span class="spark-tip" aria-hidden="true"></span>
+            </div>
+            <p class="crisis-source" data-c="source"></p>
+          </li>
+          <li class="crisis-card" data-crisis="hormuz">
+            <div class="crisis-head">
+              <h3 class="crisis-title">Hormuz · 2026</h3>
+              <div class="info">
+                <button type="button" class="info-button" aria-expanded="false" aria-controls="info-crisis-hormuz" data-demo="crisis-info-hormuz"><span aria-hidden="true">?</span><span class="visually-hidden">About this episode</span></button>
+                <div class="info-pop" id="info-crisis-hormuz" hidden></div>
+              </div>
+            </div>
+            <p class="crisis-number" data-c="number"></p>
+            <p class="crisis-label" data-c="label"></p>
+            <p class="crisis-line" data-c="line"></p>
+            <div class="crisis-spark" data-c="spark">
+              <svg class="crisis-svg" viewBox="0 0 300 80" preserveAspectRatio="none" role="img"></svg>
+              <span class="spark-dot" aria-hidden="true"></span>
+              <span class="spark-tip" aria-hidden="true"></span>
+            </div>
+            <p class="crisis-source" data-c="source"></p>
+          </li>
+        </ul>
       </div>
     </section>
   </main>

@@ -1362,7 +1362,8 @@
       });
     });
     document.addEventListener("click", function (event) {
-      if (!event.target.closest || !event.target.closest(".info")) closeInfo();
+      // Any click outside the console's own "?" boxes closes them (including a "?" elsewhere).
+      if (!event.target.closest || !event.target.closest(".console .info")) closeInfo();
     });
   }
 
