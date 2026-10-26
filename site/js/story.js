@@ -906,6 +906,7 @@
         var consoleMoving = false;
         var live = null;
         var mapHidden = false;
+        var covered = false;
         var T = STORY_UNITS; // the console entrance starts where the closure scene ends
         var units = STORY_UNITS + (con ? CONSOLE_IN + con.units : 0);
         function setMoving(on) {
@@ -921,6 +922,12 @@
             pin.classList.toggle("is-console-moving", near);
           }
           drawFleet.hold(t > T + 0.45);
+          // Under the full veil the idle lanes and tankers are not needed: hide them early.
+          var cover = t > T + 0.45;
+          if (cover !== covered) {
+            covered = cover;
+            stage.classList.toggle("is-covered", cover);
+          }
           // Once the console covers the frame, the map (lanes, glows, labels, veil) is not drawn.
           var hide = t >= T + CONSOLE_IN;
           if (hide !== mapHidden) {
@@ -1022,6 +1029,7 @@
           setMoving(false);
           pin.classList.remove("is-console-moving");
           stage.style.visibility = "";
+          stage.classList.remove("is-covered");
           splitNodes.forEach(unsplit);
           // A rebuild (resize, fonts) re-pins straight away; only fall back when the query no
           // longer matches (narrow window, reduced motion switched on).

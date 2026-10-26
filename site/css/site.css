@@ -183,9 +183,14 @@ html[data-story="pinned"] .closure-stage {
 .stage.is-moving .stage-idle {
   will-change: transform, opacity;
 }
-/* Full-frame gradients fade in and out; as their own layers that is a compositor-only change. */
-.stage.is-moving .scrim {
-  will-change: opacity;
+/* The scrims are not promoted: they only fade during short parts of the scene, and two more
+   full-frame layers cost more on large screens than repainting the gradients in those moments.
+   Once the console veil covers the map, the idle lanes and the tankers are hidden and dropped
+   from promotion (story.js sets is-covered). */
+.stage.is-covered .stage-idle,
+.stage.is-covered .stage-fleet {
+  visibility: hidden;
+  will-change: auto;
 }
 
 .map-svg {
@@ -709,7 +714,7 @@ html[data-story="pinned"] .stage-veil,
 html[data-story="pinned"] .hormuz-glow {
   display: block;
 }
-.stage.is-moving .stage-veil,
+.story-pin.is-console-moving .stage-veil,
 .story-pin.is-console-moving .hormuz-glow,
 .story-pin.is-console-moving .console,
 .story-pin.is-console-moving .closure-card {
